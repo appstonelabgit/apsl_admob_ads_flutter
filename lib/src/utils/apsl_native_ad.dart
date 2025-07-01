@@ -105,12 +105,11 @@ class _ApslNativeAdState extends State<ApslNativeAd> {
 
   @override
   Widget build(BuildContext context) {
-    final adWidget = _nativeAd?.show();
-    if (adWidget != null) {
-      return adWidget;
-    }
-    // Show loading widget from config or default
-    final config = widget.config ?? const NativeAdConfig();
-    return config.loadingWidget ?? NativeAdConfig.defaultLoadingWidget;
+    // Get the ad widget from the native ad instance
+    // The show() method always returns a widget:
+    // - Loading widget (custom or default) when loading
+    // - Actual ad widget when loaded
+    // - SizedBox.shrink() when max retries reached
+    return _nativeAd?.show() ?? const SizedBox.shrink();
   }
 }
