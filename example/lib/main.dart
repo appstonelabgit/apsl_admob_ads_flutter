@@ -20,8 +20,7 @@ void main() async {
       isShowAppOpenOnAppStateChange: true,
       adIdManager,
       adMobAdRequest: const AdRequest(),
-      admobConfiguration: RequestConfiguration(
-          testDeviceIds: ["334B90C731BDB120067DE02818259A5A"]),
+      admobConfiguration: RequestConfiguration(testDeviceIds: []),
       showAdBadge: false,
       preloadRewardedAds: false,
     );

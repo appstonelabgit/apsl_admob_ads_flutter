@@ -60,3 +60,38 @@ Widget _adaptiveAction({
     );
   }
 }
+
+/// Shows information about the new max retries functionality
+void showMaxRetriesInfo(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Max Retries Feature'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('New Feature: Zero Height After Max Retries'),
+            SizedBox(height: 8),
+            Text(
+                '• Banner and Native ads now automatically reduce height to 0 after max retry attempts'),
+            Text(
+                '• This prevents empty ad spaces from taking up screen real estate'),
+            Text(
+                '• Use the maxRetriesReached getter to check if max retries were reached'),
+            Text('• Call retry() method to manually reset and try again'),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('OK'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}

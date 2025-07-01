@@ -16,6 +16,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
   bool _isAdLoaded = false;
   bool _isLoading = false;
   int _retryCount = 0;
+  bool _maxRetriesReached = false;
   Timer? _retryTimer;
   Timer? _loadTimeoutTimer;
 
@@ -52,6 +53,9 @@ class ApslAdmobNativeAd extends ApslAdBase {
   /// Gets the current retry count
   int get retryCount => _retryCount;
 
+  /// Gets whether max retries have been reached
+  bool get maxRetriesReached => _maxRetriesReached;
+
   @override
   void dispose() {
     _isAdLoaded = false;
@@ -59,6 +63,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
     _retryTimer?.cancel();
     _loadTimeoutTimer?.cancel();
     _retryCount = 0;
+    _maxRetriesReached = false;
     if (_nativeAd != null) {
       _nativeAd!.dispose();
       _nativeAd = null;
@@ -97,6 +102,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
           _isAdLoaded = true;
           _isLoading = false;
           _retryCount = 0;
+          _maxRetriesReached = false;
           _loadTimeoutTimer?.cancel();
           _nativeAd = ad as NativeAd?;
           onAdLoaded?.call(adNetwork, adUnitType, ad);
@@ -141,6 +147,12 @@ class ApslAdmobNativeAd extends ApslAdBase {
       _retryTimer = Timer(_config.retryDelay, () {
         if (!_isAdLoaded) load();
       });
+    } else {
+      // Max retries reached - set flag and reset retry count
+      _maxRetriesReached = true;
+      _retryCount = 0;
+      // Notify widget to rebuild
+      onNativeAdReadyForSetState?.call(adNetwork, adUnitType, ad);
     }
   }
 
@@ -178,9 +190,15 @@ class ApslAdmobNativeAd extends ApslAdBase {
   /// Displays the loaded native ad, or a loading/placeholder widget if not ready.
   @override
   Widget show() {
+    // If max retries have been reached, return zero-height widget
+    if (_maxRetriesReached) {
+      return const SizedBox.shrink();
+    }
+
     if (_nativeAd == null || !_isAdLoaded) {
       load();
-      return _config.loadingWidget ?? NativeAdConfig.defaultLoadingWidget;
+      // Show loading widget if provided, otherwise show 0-height box
+      return _config.loadingWidget ?? const SizedBox.shrink();
     }
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -215,4 +233,17 @@ class ApslAdmobNativeAd extends ApslAdBase {
       ),
     );
   }
+
+  /// Manually triggers a retry of the ad load
+  ///
+  /// This method can be called to manually retry loading the ad,
+  /// useful for implementing custom retry logic in the UI.
+  Future<void> retry() async {
+    _retryCount = 0;
+    _maxRetriesReached = false;
+    await load();
+  }
+
+  /// Gets the current configuration
+  NativeAdConfig get config => _config;
 }

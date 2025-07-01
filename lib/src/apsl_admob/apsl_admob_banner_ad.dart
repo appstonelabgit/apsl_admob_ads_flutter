@@ -29,6 +29,9 @@ class ApslAdmobBannerAd extends ApslAdBase {
   /// Number of retry attempts made
   int _retryCount = 0;
 
+  /// Whether max retries have been reached
+  bool _maxRetriesReached = false;
+
   /// Timer for retry delay
   Timer? _retryTimer;
 
@@ -64,12 +67,16 @@ class ApslAdmobBannerAd extends ApslAdBase {
   /// Gets whether the ad is currently loading
   bool get isLoading => _isLoading;
 
+  /// Gets whether max retries have been reached
+  bool get maxRetriesReached => _maxRetriesReached;
+
   @override
   void dispose() {
     _cancelTimers();
     _isAdLoaded = false;
     _isLoading = false;
     _retryCount = 0;
+    _maxRetriesReached = false;
     _bannerAd?.dispose();
     _bannerAd = null;
   }
@@ -130,8 +137,11 @@ class ApslAdmobBannerAd extends ApslAdBase {
         }
       });
     } else {
-      // Reset retry count after max retries reached
+      // Max retries reached - set flag and reset retry count
+      _maxRetriesReached = true;
       _retryCount = 0;
+      // Notify widget to rebuild
+      onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
     }
   }
 
@@ -180,6 +190,8 @@ class ApslAdmobBannerAd extends ApslAdBase {
               }
             });
           } else {
+            // Max retries reached - set flag and reset retry count
+            _maxRetriesReached = true;
             _retryCount = 0;
           }
         }
@@ -196,6 +208,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
           _isAdLoaded = true;
           _isLoading = false;
           _retryCount = 0; // Reset retry count on successful load
+          _maxRetriesReached = false; // Reset max retries flag
 
           onAdLoaded?.call(adNetwork, adUnitType, ad);
           onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
@@ -211,6 +224,11 @@ class ApslAdmobBannerAd extends ApslAdBase {
 
   @override
   Widget show() {
+    // If max retries have been reached, return zero-height widget
+    if (_maxRetriesReached) {
+      return const SizedBox.shrink();
+    }
+
     // If ad is not loaded, trigger load and show loading widget
     if (_bannerAd == null || !_isAdLoaded) {
       // Only load if not already loading to prevent redundant calls
@@ -244,6 +262,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
   /// useful for implementing custom retry logic in the UI.
   Future<void> retry() async {
     _retryCount = 0;
+    _maxRetriesReached = false;
     await load();
   }
 

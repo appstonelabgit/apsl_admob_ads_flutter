@@ -6,7 +6,7 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
 
 ## 🚀 Version 1.0.0 - Initial Release
 
-**Release Date:** December 19, 2024  
+**Release Date:** Jul 1, 2025  
 **Package:** `apsl_admob_ads_flutter`
 
 ### 🎉 What's New
