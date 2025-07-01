@@ -1,0 +1,31 @@
+name: apsl_admob_ads_flutter
+description: Apsl AdMob Ads is a comprehensive Flutter package for Google AdMob integration with advanced retry logic, error handling, and configurable ad management
+version: 1.0.0
+homepage: https://github.com/appstonelabgit/apsl_admob_ads_flutter
+repository: https://github.com/appstonelabgit/apsl_admob_ads_flutter
+documentation: https://github.com/appstonelabgit/apsl_admob_ads_flutter#readme
+issue_tracker: https://github.com/appstonelabgit/apsl_admob_ads_flutter/issues
+publish_to: 'https://pub.dev'
+
+environment:
+  sdk: ">=3.0.5 <4.0.0"
+  flutter: ">=1.17.0"
+
+dependencies:
+  collection: ^1.19.1
+  flutter:
+    sdk: flutter
+  google_mobile_ads: ^6.0.0
+  logger: ^2.5.0
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+  test: ^1.24.0
+
+flutter: null
+
+# Library entry point
+library: apsl_admob_ads_flutter
