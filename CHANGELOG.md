@@ -4,6 +4,33 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
 
 ---
 
+## 🚀 Version 1.1.0 - Navigation Ad Improvements
+
+**Release Date:** Dec 19, 2024  
+**Package:** `apsl_admob_ads_flutter`
+
+### 🎯 What's New
+
+Enhanced navigation ad functionality with improved `showAdOnNavigation` method for better user experience and ad management.
+
+### ✨ Features & Improvements
+
+#### 🔄 **Enhanced Navigation Ad Management**
+- **Improved `showAdOnNavigation` Method** - Better logic for showing interstitial ads during navigation
+- **Configurable Navigation Count** - More flexible control over when ads are shown during navigation
+- **Enhanced User Experience** - Smoother integration of ads into navigation flow
+
+### 🛠️ Technical Improvements
+- **Better Navigation Tracking** - Improved internal navigation counter management
+- **Optimized Ad Display Logic** - More efficient ad showing during navigation events
+- **Enhanced Error Handling** - Better error management for navigation-based ad displays
+
+### 📚 Documentation Updates
+- Updated method documentation for `showAdOnNavigation`
+- Enhanced usage examples for navigation ad integration
+
+---
+
 ## 🚀 Version 1.0.0 - Initial Release
 
 **Release Date:** Jul 1, 2025  

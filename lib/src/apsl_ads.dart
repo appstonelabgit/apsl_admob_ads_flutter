@@ -472,28 +472,17 @@ class ApslAds {
     _appOpenAdIndex = 0;
   }
 
-  /// This will increment the navigation count and show interstitial ad if the count matches
-  void incrementNavigationCount() {
-    _navigationCount++;
-    if (_navigationCount >= _showNavigationAdAfterCount) {
-      showAd(AdUnitType.interstitial);
-      _navigationCount = 0;
+  /// This method is used to show navigation ad after every [showNavigationAdAfterCount] navigation
+  /// if [showNavigationAdAfterCount] is not provided, it will show ad after every 1 navigation
+  /// This will only show interstitial ad
+  bool showAdOnNavigation() {
+    if ((_navigationCount % (_showNavigationAdAfterCount) == 0) &&
+        _navigationCount > 0) {
+      _navigationCount++;
+      return showAd(AdUnitType.interstitial);
+    } else {
+      _navigationCount++;
+      return false;
     }
   }
-
-  /// This will reset the navigation count
-  void resetNavigationCount() {
-    _navigationCount = 0;
-  }
-
-  /// This will set the navigation count after which interstitial ad will be shown
-  void setShowNavigationAdAfterCount(int count) {
-    _showNavigationAdAfterCount = count;
-  }
-
-  /// This will get the current navigation count
-  int get navigationCount => _navigationCount;
-
-  /// This will get the navigation count after which interstitial ad will be shown
-  int get showNavigationAdAfterCount => _showNavigationAdAfterCount;
 }
