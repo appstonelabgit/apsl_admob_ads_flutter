@@ -1,0 +1,45 @@
+# Flutter/Dart/Pub related files that should not be published
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+example/pubspec.lock
+
+# Generated files that should not be published
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Runner/GeneratedPluginRegistrant.m
+
+# iOS dependency lock file
+example/ios/Podfile.lock
+
+# Build artifacts
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+
+# Documentation
+**/doc/api/
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp 
