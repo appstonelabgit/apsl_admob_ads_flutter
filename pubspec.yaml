@@ -5,8 +5,7 @@ homepage: https://github.com/appstonelabgit/apsl_admob_ads_flutter
 repository: https://github.com/appstonelabgit/apsl_admob_ads_flutter
 documentation: https://github.com/appstonelabgit/apsl_admob_ads_flutter#readme
 issue_tracker: https://github.com/appstonelabgit/apsl_admob_ads_flutter/issues
-publish_to: 'pub.dev'
-
+publish_to: 'https://pub.dev'
 environment:
   sdk: ">=3.0.5 <4.0.0"
   flutter: ">=1.17.0"
