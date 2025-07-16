@@ -113,8 +113,6 @@ class _ApslBannerAdState extends State<ApslBannerAd> {
       return BadgedBanner(child: adWidget, adSize: widget.adSize);
     }
 
-    return adWidget ??
-        SizedBox(
-            height: widget.adSize.height.toDouble()); // Prevent layout shift
+    return adWidget ?? SizedBox(height: 0); // Prevent layout shift
   }
 }

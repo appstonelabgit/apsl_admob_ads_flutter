@@ -21,6 +21,9 @@ class ApslNativeAd extends StatefulWidget {
   /// Optional configuration for retry, loading, and placeholder behavior
   final NativeAdConfig? config;
 
+  /// Optional height for the native ad
+  final double? customHeight;
+
   const ApslNativeAd({
     this.adNetwork = AdNetwork.admob,
     this.nativeTemplateStyle,
@@ -28,6 +31,7 @@ class ApslNativeAd extends StatefulWidget {
     this.nativeAdBorderColor,
     this.nativeAdBorderRadius,
     this.config,
+    this.customHeight,
     super.key,
   });
 

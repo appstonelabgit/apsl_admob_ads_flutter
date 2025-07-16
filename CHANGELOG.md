@@ -4,6 +4,17 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
 
 ---
 
+## 🚀 Version 1.2.0 - Native Ad Custom Height
+
+**Release Date:** Jul 2, 2025  
+**Package:** `apsl_admob_ads_flutter`
+
+### ✨ What's New
+
+- **Custom Height for Native Ads**: Added a `customHeight` parameter to the native ad widget, allowing developers to specify the height of native ads for more flexible UI layouts.
+
+---
+
 ## 🚀 Version 1.1.0 - Navigation Ad Improvements
 
 **Release Date:** Dec 19, 2024  

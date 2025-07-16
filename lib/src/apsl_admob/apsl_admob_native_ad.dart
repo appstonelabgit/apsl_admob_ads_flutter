@@ -11,6 +11,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
   final Color? nativeAdBorderColor;
   final double? nativeAdBorderRadius;
   final NativeAdConfig _config;
+  final double? customHeight;
 
   NativeAd? _nativeAd;
   bool _isAdLoaded = false;
@@ -37,6 +38,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
     this.nativeAdBorderColor,
     this.nativeAdBorderRadius,
     NativeAdConfig? config,
+    this.customHeight,
   })  : _adRequest = adRequest ?? const AdRequest(),
         _templateType = templateType ?? TemplateType.medium,
         _config = config ?? const NativeAdConfig();
@@ -190,24 +192,21 @@ class ApslAdmobNativeAd extends ApslAdBase {
   /// Displays the loaded native ad, or a loading/placeholder widget if not ready.
   @override
   Widget show() {
-    // If max retries have been reached, return zero-height widget
     if (_maxRetriesReached) {
       return const SizedBox.shrink();
     }
 
     if (_nativeAd == null || !_isAdLoaded) {
       load();
-      // Show loading widget if provided, otherwise show 0-height box
       return _config.loadingWidget ?? const SizedBox.shrink();
     }
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        minWidth: 320,
-        maxWidth: 400,
-        minHeight: _templateType == TemplateType.small ? 90 : 320,
-        maxHeight: _templateType == TemplateType.small ? 200 : 400,
-      ),
-      child: Center(
+    return Center(
+      child: SizedBox(
+        width: 400,
+        height: customHeight ??
+            (_templateType == TemplateType.small
+                ? 120
+                : 350), // Or whatever fits
         child: Stack(
           children: [
             if ((nativeAdBorderRadius ?? 0.0) > 0.0)

@@ -27,7 +27,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  apsl_admob_ads_flutter: ^1.0.0
+  apsl_admob_ads_flutter: ^1.2.0
 ```
 
 You can install packages from the command line:
@@ -221,120 +221,16 @@ const ApslNativeAd(
 )
 ```
 
-### Native Ad with Custom Config
+### Native Ad with Custom Height
 
 ```dart
 const ApslNativeAd(
   adNetwork: AdNetwork.admob,
-  templateType: TemplateType.medium,
-  config: NativeAdConfig(
-    retryDelay: Duration(seconds: 3),
-    maxRetries: 2,
-    loadingWidget: Center(
-      child: Column(
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 8),
-          Text('Loading Native Ad...'),
-        ],
-      ),
-    ),
-  ),
+  templateType: TemplateType.small,
+  customHeight: 120, // Set your desired height
 )
 ```
 
-## 📊 Event Handling
+### Native Ad with Custom Config
 
-Listen to ad events for better user experience:
-
-```dart
-StreamSubscription? _streamSubscription;
-
-@override
-void initState() {
-  super.initState();
-  _streamSubscription = ApslAds.instance.onEvent.listen((event) {
-    switch (event.type) {
-      case AdEventType.adLoaded:
-        print('Ad loaded: ${event.adUnitType}');
-        break;
-      case AdEventType.adFailedToLoad:
-        print('Ad failed to load: ${event.adUnitType}');
-        break;
-      case AdEventType.adShowed:
-        print('Ad showed: ${event.adUnitType}');
-        break;
-      case AdEventType.earnedReward:
-        print('Reward earned: ${event.data}');
-        break;
-    }
-  });
-}
-
-@override
-void dispose() {
-  _streamSubscription?.cancel();
-  super.dispose();
-}
 ```
-
-## 🔧 Advanced Configuration
-
-### Interstitial Ad Config
-
-```dart
-const InterstitialAdConfig(
-  retryDelay: Duration(seconds: 5),
-  maxRetries: 3,
-  enableAutoRetry: true,
-  loadTimeout: Duration(seconds: 15),
-  immersiveModeEnabled: true,
-  autoReloadAfterShow: true,
-)
-```
-
-### Rewarded Ad Config
-
-```dart
-const RewardedAdConfig(
-  retryDelay: Duration(seconds: 5),
-  maxRetries: 3,
-  enableAutoRetry: true,
-  loadTimeout: Duration(seconds: 15),
-  immersiveModeEnabled: true,
-  preLoadRewardedAds: true,
-  autoReloadAfterShow: true,
-)
-```
-
-## 🎯 Error Handling
-
-The package provides detailed error categorization:
-
-```dart
-enum AdErrorType {
-  networkError,    // Network connectivity issues
-  invalidAdUnit,   // Invalid or malformed ad unit ID
-  timeout,         // Ad request timeout
-  noFill,          // No ad available to serve
-  internalError,   // Internal SDK error
-  unknown,         // Unknown or unspecified error
-}
-```
-
-## 📱 Example
-
-Check out the [example](https://github.com/appstonelabgit/apsl_admob_ads_flutter/tree/main/example) directory for a complete working example.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Google AdMob team for the excellent Flutter plugin
-- Flutter community for the amazing framework
