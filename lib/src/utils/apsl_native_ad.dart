@@ -12,12 +12,6 @@ class ApslNativeAd extends StatefulWidget {
   /// The type of template to use (small, medium, or custom)
   final TemplateType? templateType;
 
-  /// Optional color for the native ad border
-  final Color? nativeAdBorderColor;
-
-  /// Optional border radius for the native ad
-  final double? nativeAdBorderRadius;
-
   /// Optional configuration for retry, loading, and placeholder behavior
   final NativeAdConfig? config;
 
@@ -28,8 +22,6 @@ class ApslNativeAd extends StatefulWidget {
     this.adNetwork = AdNetwork.admob,
     this.nativeTemplateStyle,
     this.templateType,
-    this.nativeAdBorderColor,
-    this.nativeAdBorderRadius,
     this.config,
     this.customHeight,
     super.key,
@@ -78,8 +70,6 @@ class _ApslNativeAdState extends State<ApslNativeAd> {
       adNetwork: _currentNetwork,
       nativeTemplateStyle: widget.nativeTemplateStyle,
       templateType: _currentTemplateType,
-      nativeAdBorderColor: widget.nativeAdBorderColor,
-      nativeAdBorderRadius: widget.nativeAdBorderRadius,
       config: _currentConfig,
     );
 
