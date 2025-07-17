@@ -4,14 +4,14 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
 
 ---
 
-## 🚨 Version 1.3.0 - NativeAd API Simplification
+## 🚨 Version 1.3.0 - NativeAd API Simplification & Stability
 
 **Release Date:** Jul 2, 2025  
 **Package:** `apsl_admob_ads_flutter`
 
 ### ⚠️ Breaking Changes
 
-- **NativeAd API Simplified:** Removed previous options from the NativeAd constructor. Now only the following options are supported:
+- **NativeAd API Simplified:** The NativeAd constructor has been streamlined for clarity and maintainability. Deprecated and legacy options have been removed. Now only the following options are supported:
   - `adUnitId`
   - `adRequest`
   - `nativeTemplateStyle`
@@ -19,7 +19,11 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
   - `config`
   - `customHeight`
 
-Update your usage accordingly. See the README for new usage examples.
+### 🛠 Improvements
+- Improved documentation and usage examples for the new API.
+- Internal code cleanup for better stability and maintainability.
+
+**This is a stable and recommended update for all users.**
 
 ---
 

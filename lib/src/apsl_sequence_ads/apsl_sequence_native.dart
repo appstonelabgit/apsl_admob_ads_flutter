@@ -14,12 +14,6 @@ class ApslSequenceNativeAd extends StatefulWidget {
   /// The type of template to use (small, medium, or custom)
   final TemplateType templateType;
 
-  /// Optional color for the native ad border
-  final Color? nativeAdBorderColor;
-
-  /// Optional border radius for the native ad
-  final double? nativeAdBorderRadius;
-
   /// Optional configuration for retry, loading, and placeholder behavior
   final NativeAdConfig? config;
 
@@ -30,8 +24,6 @@ class ApslSequenceNativeAd extends StatefulWidget {
     ],
     this.nativeTemplateStyle,
     this.templateType = TemplateType.medium,
-    this.nativeAdBorderColor,
-    this.nativeAdBorderRadius,
     this.config,
   });
 
@@ -102,8 +94,6 @@ class _ApslSequenceNativeAdState extends State<ApslSequenceNativeAd> {
       adNetwork: priorityAdNetwork,
       nativeTemplateStyle: widget.nativeTemplateStyle,
       templateType: widget.templateType,
-      nativeAdBorderColor: widget.nativeAdBorderColor,
-      nativeAdBorderRadius: widget.nativeAdBorderRadius,
       config: widget.config,
     );
   }

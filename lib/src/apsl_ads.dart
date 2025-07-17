@@ -211,8 +211,6 @@ class ApslAds {
     required AdNetwork adNetwork,
     NativeTemplateStyle? nativeTemplateStyle,
     TemplateType? templateType,
-    Color? nativeAdBorderColor,
-    double? nativeAdBorderRadius,
     NativeAdConfig? config,
   }) {
     ApslAdBase? ad;
