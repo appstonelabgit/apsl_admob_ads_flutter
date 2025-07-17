@@ -183,8 +183,6 @@ class ApslAds {
   ///
   /// * [nativeTemplateStyle] - Optional styling for the native ad template
   /// * [templateType] - The type of template to use (small, medium, or custom)
-  /// * [nativeAdBorderColor] - Optional color for the native ad border
-  /// * [nativeAdBorderRadius] - Optional border radius for the native ad
   /// * [config] - Optional configuration for retry, loading, and placeholder behavior
   ///
   /// Currently supported networks:
@@ -197,8 +195,6 @@ class ApslAds {
   /// final nativeAd = ApslAds.instance.createNative(
   ///   adNetwork: AdNetwork.admob,
   ///   templateType: TemplateType.medium,
-  ///   nativeAdBorderColor: Colors.blue,
-  ///   nativeAdBorderRadius: 8.0,
   ///   config: NativeAdConfig(
   ///     retryDelay: Duration(seconds: 10),
   ///     maxRetries: 5,
