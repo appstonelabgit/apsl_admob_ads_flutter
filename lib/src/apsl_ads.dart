@@ -227,8 +227,6 @@ class ApslAds {
             nativeId,
             nativeTemplateStyle: nativeTemplateStyle,
             templateType: templateType,
-            nativeAdBorderColor: nativeAdBorderColor,
-            nativeAdBorderRadius: nativeAdBorderRadius,
             config: config,
           );
         }

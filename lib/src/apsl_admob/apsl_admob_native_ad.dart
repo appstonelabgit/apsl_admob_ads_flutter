@@ -8,8 +8,6 @@ class ApslAdmobNativeAd extends ApslAdBase {
   final AdRequest _adRequest;
   final NativeTemplateStyle? nativeTemplateStyle;
   final TemplateType _templateType;
-  final Color? nativeAdBorderColor;
-  final double? nativeAdBorderRadius;
   final NativeAdConfig _config;
   final double? customHeight;
 
@@ -27,16 +25,12 @@ class ApslAdmobNativeAd extends ApslAdBase {
   /// [adRequest] - Optional custom ad request configuration
   /// [nativeTemplateStyle] - Optional template style for the native ad
   /// [templateType] - The type of template to use (small, medium, or custom)
-  /// [nativeAdBorderColor] - Optional color for the native ad border
-  /// [nativeAdBorderRadius] - Optional border radius for the native ad
   /// [config] - Optional configuration for retry behavior and loading settings
   ApslAdmobNativeAd(
     super.adUnitId, {
     AdRequest? adRequest,
     this.nativeTemplateStyle,
     TemplateType? templateType,
-    this.nativeAdBorderColor,
-    this.nativeAdBorderRadius,
     NativeAdConfig? config,
     this.customHeight,
   })  : _adRequest = adRequest ?? const AdRequest(),
@@ -207,28 +201,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
             (_templateType == TemplateType.small
                 ? 120
                 : 350), // Or whatever fits
-        child: Stack(
-          children: [
-            if ((nativeAdBorderRadius ?? 0.0) > 0.0)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(nativeAdBorderRadius!),
-                child: AdWidget(ad: _nativeAd!),
-              )
-            else
-              AdWidget(ad: _nativeAd!),
-            if ((nativeAdBorderRadius ?? 0.0) > 0.0)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(nativeAdBorderRadius!),
-                    border: Border.all(
-                      color: nativeAdBorderColor ?? Colors.transparent,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+        child: AdWidget(ad: _nativeAd!),
       ),
     );
   }

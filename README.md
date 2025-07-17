@@ -1,5 +1,7 @@
 # Apsl AdMob Ads Flutter
 
+> **⚠️ v1.3.0 BREAKING CHANGE:** The NativeAd API has been simplified. Previous options have been removed. Only the following options are now supported: `adUnitId`, `adRequest`, `nativeTemplateStyle`, `templateType`, `config`, and `customHeight`. Update your usage accordingly.
+
 Seamlessly integrate Google AdMob ads into your Flutter app using the `Apsl AdMob Ads Flutter` package. This comprehensive package provides advanced retry logic, configurable error handling, and robust ad management for all AdMob ad types.
 
 🌟 If this package benefits you, show your support by giving it a star on GitHub!
@@ -27,7 +29,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  apsl_admob_ads_flutter: ^1.2.0
+  apsl_admob_ads_flutter: ^1.3.0
 ```
 
 You can install packages from the command line:
@@ -233,4 +235,5 @@ const ApslNativeAd(
 
 ### Native Ad with Custom Config
 
+```
 ```
