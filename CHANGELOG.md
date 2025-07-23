@@ -2,6 +2,17 @@
 
 All notable changes to the `apsl_admob_ads_flutter` package will be documented in this file.
 
+## 🚀 Version 1.5.0 - Analytics Event Callbacks
+
+**Release Date:** Jul 23, 2025  
+**Package:** `apsl_admob_ads_flutter`
+
+### ✨ What's New
+- **Analytics Event Callbacks:** All ad types (Banner, Native, Interstitial, Rewarded, App Open) now support `onAdShowed` and `onAdFailedToShow` callbacks for robust analytics and logging integration.
+- **Docs:** Added usage examples and guidance for integrating analytics/logging with ad events.
+
+**This is a recommended update for anyone who wants to track ad impressions and failures in their app.**
+
 ---
 
 ## 🚨 Version 1.3.0 - NativeAd API Simplification & Stability
