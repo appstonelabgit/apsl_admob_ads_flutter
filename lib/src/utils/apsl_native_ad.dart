@@ -18,12 +18,20 @@ class ApslNativeAd extends StatefulWidget {
   /// Optional height for the native ad
   final double? customHeight;
 
+  /// Optional onAdShowed callback
+  final ApslAdCallback? onAdShowed;
+
+  /// Optional onAdFailedToLoad callback
+  final ApslAdCallback? onAdFailedToLoad;
+
   const ApslNativeAd({
     this.adNetwork = AdNetwork.admob,
     this.nativeTemplateStyle,
     this.templateType,
     this.config,
     this.customHeight,
+    this.onAdShowed,
+    this.onAdFailedToLoad,
     super.key,
   });
 
@@ -71,10 +79,14 @@ class _ApslNativeAdState extends State<ApslNativeAd> {
       nativeTemplateStyle: widget.nativeTemplateStyle,
       templateType: _currentTemplateType,
       config: _currentConfig,
+      onAdFailedToLoad: widget.onAdFailedToLoad,
+      onAdShowed: widget.onAdShowed,
     );
 
     _nativeAd?.onAdLoaded = _onNativeAdReady;
     _nativeAd?.onNativeAdReadyForSetState = _onNativeAdReady;
+    _nativeAd?.onAdShowed = widget.onAdShowed;
+    _nativeAd?.onAdFailedToLoad = widget.onAdFailedToLoad;
 
     _nativeAd?.load();
   }

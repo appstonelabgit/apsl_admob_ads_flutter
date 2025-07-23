@@ -6,12 +6,19 @@ import 'package:flutter/material.dart';
 class ApslSequenceBannerAd extends StatefulWidget {
   final List<AdNetwork> orderOfAdNetworks;
   final AdSize adSize;
-  const ApslSequenceBannerAd(
-      {super.key,
-      this.orderOfAdNetworks = const [
-        AdNetwork.admob,
-      ],
-      this.adSize = AdSize.banner});
+
+  final ApslAdCallback? onAdFailedToLoad;
+  final ApslAdCallback? onAdShowed;
+
+  const ApslSequenceBannerAd({
+    super.key,
+    this.orderOfAdNetworks = const [
+      AdNetwork.admob,
+    ],
+    this.adSize = AdSize.banner,
+    this.onAdFailedToLoad,
+    this.onAdShowed,
+  });
 
   @override
   State<ApslSequenceBannerAd> createState() => _ApslSequenceBannerAdState();

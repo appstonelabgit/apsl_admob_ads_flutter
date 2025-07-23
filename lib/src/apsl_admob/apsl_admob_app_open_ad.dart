@@ -10,7 +10,10 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
   bool _isShowingAd = false;
   bool _isLoading = false;
 
-  ApslAdmobAppOpenAd(super.adUnitId, this.adRequest);
+  ApslAdmobAppOpenAd(
+    super.adUnitId,
+    this.adRequest, {
+  });
 
   @override
   AdNetwork get adNetwork => AdNetwork.admob;

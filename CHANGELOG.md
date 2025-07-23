@@ -22,6 +22,7 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
 ### 🛠 Improvements
 - Improved documentation and usage examples for the new API.
 - Internal code cleanup for better stability and maintainability.
+- Unified ad event callbacks (`onAdShowed`, `onAdFailedToShow`) for all ad types, enabling robust analytics and logging from your app.
 
 **This is a stable and recommended update for all users.**
 

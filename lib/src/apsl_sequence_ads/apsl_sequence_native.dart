@@ -14,6 +14,12 @@ class ApslSequenceNativeAd extends StatefulWidget {
   /// The type of template to use (small, medium, or custom)
   final TemplateType templateType;
 
+  /// Optional onAdShowed callback
+  final ApslAdCallback? onAdShowed;
+
+  /// Optional onAdFailedToLoad callback
+  final ApslAdCallback? onAdFailedToLoad;
+
   /// Optional configuration for retry, loading, and placeholder behavior
   final NativeAdConfig? config;
 
@@ -25,6 +31,8 @@ class ApslSequenceNativeAd extends StatefulWidget {
     this.nativeTemplateStyle,
     this.templateType = TemplateType.medium,
     this.config,
+    this.onAdShowed,
+    this.onAdFailedToLoad,
   });
 
   @override
@@ -95,6 +103,8 @@ class _ApslSequenceNativeAdState extends State<ApslSequenceNativeAd> {
       nativeTemplateStyle: widget.nativeTemplateStyle,
       templateType: widget.templateType,
       config: widget.config,
+      onAdShowed: widget.onAdShowed,
+      onAdFailedToLoad: widget.onAdFailedToLoad,
     );
   }
 

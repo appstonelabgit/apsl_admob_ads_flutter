@@ -1,10 +1,10 @@
 /// Configuration class for interstitial ad settings
 class InterstitialAdConfig {
   /// Default retry delay duration
-  static const Duration defaultRetryDelay = Duration(seconds: 5);
+  static const Duration defaultRetryDelay = Duration(seconds: 30);
 
   /// Maximum number of retry attempts
-  static const int defaultMaxRetries = 3;
+  static const int defaultMaxRetries = 1;
 
   /// Retry delay duration for failed ad loads
   final Duration retryDelay;

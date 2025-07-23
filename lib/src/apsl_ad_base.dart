@@ -5,7 +5,9 @@ abstract class ApslAdBase {
   final String adUnitId;
 
   /// This will be called for initialization when we don't have to wait for the initialization
-  ApslAdBase(this.adUnitId);
+  ApslAdBase(
+    this.adUnitId,
+  );
 
   AdNetwork get adNetwork;
   AdUnitType get adUnitType;

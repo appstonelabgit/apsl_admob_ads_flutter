@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 /// Configuration class for native ad settings
 class NativeAdConfig {
   /// Default retry delay duration
-  static const Duration defaultRetryDelay = Duration(seconds: 5);
+  static const Duration defaultRetryDelay = Duration(seconds: 30);
 
   /// Maximum number of retry attempts
-  static const int defaultMaxRetries = 3;
+  static const int defaultMaxRetries = 1;
 
   /// Default loading placeholder widget
   static const Widget defaultLoadingWidget = SizedBox(

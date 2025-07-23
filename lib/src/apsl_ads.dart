@@ -70,6 +70,8 @@ class ApslAds {
     int showNavigationAdAfterCount = 1,
     bool preloadRewardedAds = false,
     bool blockAppOpenAd = false,
+    ApslAdCallback? onAdFailedToLoad,
+    ApslAdCallback? onAdShowed,
   }) async {
     _showAdBadge = showAdBadge;
     _showNavigationAdAfterCount = showNavigationAdAfterCount;
@@ -111,6 +113,8 @@ class ApslAds {
               interstitialAdUnitId: appAdId.interstitialId,
               rewardedAdUnitId: appAdId.rewardedId,
               isShowAppOpenOnAppStateChange: isShowAppOpenOnAppStateChange,
+              onAdFailedToLoad: onAdFailedToLoad,
+              onAdShowed: onAdShowed,
             );
             break;
 
@@ -151,6 +155,8 @@ class ApslAds {
     required AdNetwork adNetwork,
     AdSize adSize = AdSize.banner,
     BannerAdConfig? config,
+    ApslAdCallback? onAdFailedToLoad,
+    ApslAdCallback? onAdShowed,
   }) {
     ApslAdBase? ad;
     final bannerId = adIdManager.getAppIds(adNetwork).bannerId;
@@ -208,6 +214,8 @@ class ApslAds {
     NativeTemplateStyle? nativeTemplateStyle,
     TemplateType? templateType,
     NativeAdConfig? config,
+    ApslAdCallback? onAdFailedToLoad,
+    ApslAdCallback? onAdShowed,
   }) {
     ApslAdBase? ad;
     final nativeId = adIdManager.getAppIds(adNetwork).nativeId;
@@ -237,6 +245,8 @@ class ApslAds {
     String? rewardedAdUnitId,
     bool immersiveModeEnabled = true,
     bool isShowAppOpenOnAppStateChange = true,
+    ApslAdCallback? onAdFailedToLoad,
+    ApslAdCallback? onAdShowed,
   }) async {
     // init interstitial ads
     ApslLogger().logInfo("InterstitialAdUnitId $interstitialAdUnitId");
@@ -267,7 +277,7 @@ class ApslAds {
           rewardedAdUnitId,
         )) {
       final ad = ApslAdmobRewardedAd(
-        adUnitId: rewardedAdUnitId,
+        rewardedAdUnitId,
         adRequest: _adRequest,
         config: RewardedAdConfig(
           immersiveModeEnabled: immersiveModeEnabled,

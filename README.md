@@ -237,3 +237,29 @@ const ApslNativeAd(
 
 ```
 ```
+```
+
+## 📊 Ad Event Callbacks for Analytics & Logging
+
+All ad types (Banner, Native, Interstitial, Rewarded, App Open) now support robust event callbacks for analytics and logging:
+
+- `onAdShowed`: Called exactly once when the ad is actually displayed to the user.
+- `onAdFailedToShow`: Called if the ad fails to display.
+
+You can use these callbacks to track impressions, failures, and integrate with analytics tools (e.g., Firebase Analytics).
+
+**Example:**
+```dart
+final bannerAd = ApslAds.instance.createBanner(
+  adNetwork: AdNetwork.admob,
+  adSize: AdSize.banner,
+  onAdShowed: (adNetwork, adUnitType, ad) {
+    print('Banner ad showed!');
+    // Your analytics code here
+  },
+  onAdFailedToShow: (adNetwork, adUnitType, ad, {errorMessage}) {
+    print('Banner ad failed to show: $errorMessage');
+    // Your analytics code here
+  },
+);
+```

@@ -111,6 +111,8 @@ class ApslAdmobNativeAd extends ApslAdBase {
           ad.dispose();
           _loadTimeoutTimer?.cancel();
           final errorType = _mapErrorToType(error);
+          onAdFailedToLoad?.call(adNetwork, adUnitType, ad,
+              errorMessage: error.toString());
           _handleError(errorType, errorMessage: error.toString(), ad: ad);
         },
       ),
@@ -194,6 +196,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
       load();
       return _config.loadingWidget ?? const SizedBox.shrink();
     }
+    onAdShowed?.call(adNetwork, adUnitType, _nativeAd);
     return Center(
       child: SizedBox(
         width: 400,

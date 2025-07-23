@@ -26,13 +26,12 @@ class ApslAdmobRewardedAd extends ApslAdBase {
   /// [adUnitId] - The AdMob ad unit ID for the rewarded ad
   /// [adRequest] - Optional custom ad request configuration
   /// [config] - Optional configuration for retry behavior and loading settings
-  ApslAdmobRewardedAd({
-    required String adUnitId,
+  ApslAdmobRewardedAd(
+    super.adUnitId, {
     AdRequest? adRequest,
     RewardedAdConfig? config,
   })  : _adRequest = adRequest ?? const AdRequest(),
-        _config = config ?? const RewardedAdConfig(),
-        super(adUnitId);
+        _config = config ?? const RewardedAdConfig();
 
   @override
   AdNetwork get adNetwork => AdNetwork.admob;

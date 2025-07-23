@@ -30,11 +30,19 @@ class ApslBannerAd extends StatefulWidget {
   /// Optional configuration for retry behavior and loading settings
   final BannerAdConfig? config;
 
+  /// Optional onAdFailedToLoad callback
+  final ApslAdCallback? onAdFailedToLoad;
+
+  /// Optional onAdShowed callback
+  final ApslAdCallback? onAdShowed;
+
   /// Creates a new [ApslBannerAd] widget
   const ApslBannerAd({
     this.adNetwork = AdNetwork.admob,
     this.adSize = AdSize.banner,
     this.config,
+    this.onAdFailedToLoad,
+    this.onAdShowed,
     super.key,
   });
 
@@ -82,6 +90,8 @@ class _ApslBannerAdState extends State<ApslBannerAd> {
 
     _bannerAd?.onAdLoaded = _onBannerAdReady;
     _bannerAd?.onBannerAdReadyForSetState = _onBannerAdReady;
+    _bannerAd?.onAdFailedToLoad = widget.onAdFailedToLoad;
+    _bannerAd?.onAdShowed = widget.onAdShowed;
 
     _bannerAd?.load();
   }
