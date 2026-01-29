@@ -2,12 +2,28 @@
 
 All notable changes to the `apsl_admob_ads_flutter` package will be documented in this file.
 
+## 🚀 Version 1.6.0 - Updated Package Versions
+
+**Release Date:** Jan 29, 2026
+**Package:** `apsl_admob_ads_flutter`
+
+### 🛠 Improvements
+
+- Updated Package Versions: Upgraded internal and external dependencies to their latest stable versions for improved compatibility and reliability.
+
+- Improved Stability: Includes upstream fixes and performance improvements from updated libraries, resulting in smoother ad loading and lifecycle handling.
+
+- Maintenance Release: No breaking API changes. This release focuses on keeping the package modern, secure, and stable.
+
+---
+
 ## 🚀 Version 1.5.0 - Analytics Event Callbacks
 
 **Release Date:** Jul 23, 2025  
 **Package:** `apsl_admob_ads_flutter`
 
 ### ✨ What's New
+
 - **Analytics Event Callbacks:** All ad types (Banner, Native, Interstitial, Rewarded, App Open) now support `onAdShowed` and `onAdFailedToShow` callbacks for robust analytics and logging integration.
 - **Docs:** Added usage examples and guidance for integrating analytics/logging with ad events.
 
@@ -31,6 +47,7 @@ All notable changes to the `apsl_admob_ads_flutter` package will be documented i
   - `customHeight`
 
 ### 🛠 Improvements
+
 - Improved documentation and usage examples for the new API.
 - Internal code cleanup for better stability and maintainability.
 - Unified ad event callbacks (`onAdShowed`, `onAdFailedToShow`) for all ad types, enabling robust analytics and logging from your app.
@@ -62,16 +79,19 @@ Enhanced navigation ad functionality with improved `showAdOnNavigation` method f
 ### ✨ Features & Improvements
 
 #### 🔄 **Enhanced Navigation Ad Management**
+
 - **Improved `showAdOnNavigation` Method** - Better logic for showing interstitial ads during navigation
 - **Configurable Navigation Count** - More flexible control over when ads are shown during navigation
 - **Enhanced User Experience** - Smoother integration of ads into navigation flow
 
 ### 🛠️ Technical Improvements
+
 - **Better Navigation Tracking** - Improved internal navigation counter management
 - **Optimized Ad Display Logic** - More efficient ad showing during navigation events
 - **Enhanced Error Handling** - Better error management for navigation-based ad displays
 
 ### 📚 Documentation Updates
+
 - Updated method documentation for `showAdOnNavigation`
 - Enhanced usage examples for navigation ad integration
 
@@ -91,6 +111,7 @@ Welcome to **Apsl AdMob Ads Flutter** - A comprehensive, production-ready Flutte
 ## ✨ Features
 
 ### 🎯 **Complete AdMob Integration**
+
 - **Banner Ads** - Responsive, configurable banner ads with smart retry logic
 - **Native Ads** - Customizable native ad templates with advanced styling
 - **Interstitial Ads** - Full-screen ads with intelligent loading and error handling
@@ -98,24 +119,28 @@ Welcome to **Apsl AdMob Ads Flutter** - A comprehensive, production-ready Flutte
 - **App Open Ads** - Lifecycle-aware app open ads with automatic management
 
 ### ⚙️ **Advanced Configuration System**
+
 - **`BannerAdConfig`** - Fine-tune banner ad behavior and appearance
 - **`NativeAdConfig`** - Customize native ad templates and loading behavior
 - **`InterstitialAdConfig`** - Configure interstitial ad loading and display logic
 - **`RewardedAdConfig`** - Manage rewarded ad preloading and user experience
 
 ### 🛡️ **Robust Error Handling**
+
 - **`AdErrorType`** - Detailed error categorization for better debugging
 - **Smart Retry Logic** - Configurable retry attempts with exponential backoff
 - **Load Timeout Handling** - Prevent hanging requests with timeout management
 - **Comprehensive Error Reporting** - Detailed error messages and stack traces
 
 ### 🎨 **Enhanced User Experience**
+
 - **Custom Loading Widgets** - Beautiful placeholder widgets during ad loading
 - **Automatic Lifecycle Management** - Seamless ad lifecycle handling
 - **Event Streaming** - Real-time ad event notifications
 - **Manual Retry Methods** - Developer control over retry behavior
 
 ### 🛠️ **Developer-Friendly Features**
+
 - **Comprehensive Documentation** - Complete API documentation with examples
 - **Type-Safe Configuration** - Strongly typed configuration classes
 - **Backward Compatibility** - Smooth migration from existing implementations
@@ -126,6 +151,7 @@ Welcome to **Apsl AdMob Ads Flutter** - A comprehensive, production-ready Flutte
 ## 🔧 Technical Highlights
 
 ### **Performance Optimizations**
+
 - Configurable retry delay and max attempts for all ad types
 - Proper timer management and cleanup to prevent memory leaks
 - Enhanced disposal logic for better resource management
@@ -133,6 +159,7 @@ Welcome to **Apsl AdMob Ads Flutter** - A comprehensive, production-ready Flutte
 - Consistent API design across all ad types
 
 ### **Code Quality**
+
 - **100% Dart/Flutter** - No platform-specific code dependencies
 - **Null Safety** - Full null safety support throughout
 - **Modern Flutter** - Built with latest Flutter best practices
@@ -143,12 +170,14 @@ Welcome to **Apsl AdMob Ads Flutter** - A comprehensive, production-ready Flutte
 ## 📚 Documentation & Examples
 
 ### **Complete Documentation**
+
 - 📖 [Installation Guide](https://github.com/appstonelabgit/apsl_admob_ads_flutter#installation)
 - 🚀 [Quick Start Guide](https://github.com/appstonelabgit/apsl_admob_ads_flutter#quick-start)
 - 📋 [API Reference](https://github.com/appstonelabgit/apsl_admob_ads_flutter#api-reference)
 - 🎯 [Configuration Guide](https://github.com/appstonelabgit/apsl_admob_ads_flutter#configuration)
 
 ### **Example Applications**
+
 - 📱 [Complete Example App](https://github.com/appstonelabgit/apsl_admob_ads_flutter/tree/main/example)
 - 🎨 [UI Examples](https://github.com/appstonelabgit/apsl_admob_ads_flutter/tree/main/example/lib)
 - ⚙️ [Configuration Examples](https://github.com/appstonelabgit/apsl_admob_ads_flutter/tree/main/example/lib)
@@ -158,12 +187,14 @@ Welcome to **Apsl AdMob Ads Flutter** - A comprehensive, production-ready Flutte
 ## 🎯 Package Focus
 
 ### **AdMob-Only Approach**
+
 - **Streamlined** - Focused solely on Google AdMob for optimal performance
 - **Production Ready** - Robust error handling and retry logic
 - **Developer Experience** - Easy to use with comprehensive configuration options
 - **Performance** - Optimized loading and lifecycle management
 
 ### **Why This Package?**
+
 - 🚀 **Fast Integration** - Get up and running in minutes
 - 🛡️ **Reliable** - Built-in error handling and retry mechanisms
 - 🎨 **Flexible** - Highly configurable for any use case
