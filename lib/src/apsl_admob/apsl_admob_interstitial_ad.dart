@@ -26,7 +26,7 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
   /// [adUnitId] - The AdMob ad unit ID for the interstitial ad
   /// [adRequest] - Optional custom ad request configuration
   /// [config] - Optional configuration for retry behavior and loading settings
-  ApslAdmobInterstitialAd(
+  ApslAdmobInterstitialAd(  
     super.adUnitId, {
     AdRequest? adRequest,
     InterstitialAdConfig? config,

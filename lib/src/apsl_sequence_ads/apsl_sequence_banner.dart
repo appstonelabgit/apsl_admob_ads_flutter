@@ -84,7 +84,12 @@ class _ApslSequenceBannerAdState extends State<ApslSequenceBannerAd> {
 
   Widget _showBannerAd(AdNetwork priorityAdNetwork) {
     _subscribeToAdEvent(priorityAdNetwork);
-    return ApslBannerAd(adNetwork: priorityAdNetwork, adSize: widget.adSize);
+    return ApslBannerAd(
+      adNetwork: priorityAdNetwork,
+      adSize: widget.adSize,
+      onAdFailedToLoad: widget.onAdFailedToLoad,
+      onAdShowed: widget.onAdShowed,
+    );
   }
 
   void _cancelStream() {

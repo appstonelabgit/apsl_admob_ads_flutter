@@ -86,6 +86,8 @@ class _ApslBannerAdState extends State<ApslBannerAd> {
       adNetwork: _currentNetwork,
       adSize: _currentSize,
       config: _currentConfig,
+      onAdFailedToLoad: widget.onAdFailedToLoad,
+      onAdShowed: widget.onAdShowed,
     );
 
     _bannerAd?.onAdLoaded = _onBannerAdReady;
