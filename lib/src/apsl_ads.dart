@@ -61,8 +61,6 @@ class ApslAds {
   /// [_isMobileAdNetworkInitialized] is used to check if admob is initialized or not
   bool _isMobileAdNetworkInitialized = false;
 
-  StreamSubscription? _streamSubscription;
-
   /// Initializes the Google Mobile Ads SDK and preloads ads.
   ///
   /// Call this method as early as possible after the app launches.
@@ -367,47 +365,80 @@ class ApslAds {
     }
   }
 
-  /// Loads and shows a rewarded ad with a loading dialog.
+  /// Loads and shows a rewarded ad, displaying a loading dialog while the
+  /// load is in flight.
   ///
-  /// This method will show a loading dialog while the ad is being loaded,
-  /// and then display the ad once it's ready.
+  /// Behavior:
+  /// * If the ad is already loaded, shows it immediately with no dialog.
+  /// * Otherwise shows a blocking loader, kicks off a load, and waits for
+  ///   the matching `adLoaded` / `adFailedToLoad` event.
+  /// * If neither event arrives within [waitTimeout], the loader is
+  ///   dismissed and `false` is returned so the caller can react.
   ///
-  /// Parameters:
-  /// * [context] - The build context for showing the loading dialog
-  /// * [adNetwork] - The ad network to use (defaults to AdNetwork.any)
-  ///
-  /// Returns true if the ad loading process was initiated successfully.
-  bool loadAndShowRewardedAd({
+  /// Returns a future that resolves to `true` if the ad was successfully
+  /// shown, `false` otherwise (no ad available, load failed, or timeout).
+  Future<bool> loadAndShowRewardedAd({
     required BuildContext context,
     AdNetwork adNetwork = AdNetwork.any,
-  }) {
-    try {
-      final ad = _fetchAdByTypeAndNetwork(AdUnitType.rewarded, adNetwork);
-      ad?.load();
-
-      showLoaderDialog(context);
-
-      _streamSubscription?.cancel();
-      _streamSubscription = ApslAds.instance.onEvent.listen((event) {
-        if (event.adUnitType == AdUnitType.rewarded) {
-          _logger.logInfo(
-              "message: ${event.adNetwork} ${event.adUnitType} $event");
-
-          if (event.type == AdEventType.adLoaded) {
-            _updateAdIndex(AdUnitType.rewarded);
-            hideLoaderDialog();
-            ad?.show();
-          } else if (event.type == AdEventType.adFailedToLoad) {
-            _updateAdIndex(AdUnitType.rewarded);
-            hideLoaderDialog();
-          }
-        }
-      });
-    } catch (e) {
-      _logger.logInfo("Error in showing rewarded ad: $e");
+    Duration waitTimeout = const Duration(seconds: 10),
+  }) async {
+    final ad = _fetchAdByTypeAndNetwork(AdUnitType.rewarded, adNetwork);
+    if (ad == null) {
+      _logger.logInfo("No rewarded ad configured for $adNetwork");
       return false;
     }
-    return false;
+
+    // Fast path: cache hit. Show immediately, no loader, no subscription.
+    if (ad.isAdLoaded) {
+      ad.show();
+      _updateAdIndex(AdUnitType.rewarded);
+      return true;
+    }
+
+    final completer = Completer<bool>();
+    late StreamSubscription<AdEvent> subscription;
+    Timer? timeoutTimer;
+
+    void finish(bool result) {
+      if (completer.isCompleted) return;
+      timeoutTimer?.cancel();
+      subscription.cancel();
+      hideLoaderDialog();
+      completer.complete(result);
+    }
+
+    // Subscribe BEFORE the load() call so we can't miss a synchronous
+    // adLoaded event from a cache that warmed up between the isAdLoaded
+    // check and now.
+    subscription = onEvent.listen((event) {
+      if (event.adUnitType != AdUnitType.rewarded) return;
+      if (event.adNetwork != ad.adNetwork) return;
+
+      if (event.type == AdEventType.adLoaded) {
+        ad.show();
+        _updateAdIndex(AdUnitType.rewarded);
+        finish(true);
+      } else if (event.type == AdEventType.adFailedToLoad) {
+        finish(false);
+      }
+    });
+
+    timeoutTimer = Timer(waitTimeout, () {
+      _logger.logInfo("Rewarded ad load wait timed out after $waitTimeout");
+      finish(false);
+    });
+
+    try {
+      showLoaderDialog(context);
+      // Fire the load — listener will react to its outcome.
+      // ignore: unawaited_futures
+      ad.load();
+    } catch (e) {
+      _logger.logInfo("Error in showing rewarded ad: $e");
+      finish(false);
+    }
+
+    return completer.future;
   }
 
   ApslAdBase? _fetchAdByTypeAndNetwork(
