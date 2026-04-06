@@ -2,6 +2,118 @@
 
 All notable changes to the `apsl_admob_ads_flutter` package will be documented in this file.
 
+## 🚀 Version 2.0.0 - Reliability, Revenue, and Retry Overhaul
+
+**Release Date:** Apr 6, 2026
+**Package:** `apsl_admob_ads_flutter`
+
+This release is a deep audit pass focused on ad fill, load latency, and
+reliability. It contains breaking API changes — see migration notes below.
+
+### 💰 Revenue & fill improvements
+
+- **Exponential backoff retries** (2s → 4s → 8s → … capped at 64s) replace
+  the old fixed 30-second retry. Single biggest fill-rate win.
+- **Default `maxRetries` raised from 1 to 5** across all four ad configs.
+  Previously a single failed retry left the slot dead for the rest of
+  the session.
+- **Error-code-based classification** using the SDK's stable
+  `LoadAdError.code` constants instead of fragile substring matching.
+  Non-recoverable errors (invalid ad unit / missing app id) now stop
+  retrying instead of hammering the network forever.
+- **Rewarded ads default to preloaded** (`preLoadRewardedAds: true`) and
+  always reload after dismiss — the next user tap is instant.
+- **Network- and lifecycle-aware load resumer**: any ad that exhausted
+  its retry budget on a flaky network is automatically re-armed when
+  connectivity returns or the app comes back to the foreground (powered
+  by `connectivity_plus`).
+- **Sensible default `loadTimeout` of 20 seconds** for every ad type.
+- Banner/Native configs now have value-based `==`/`hashCode`, so a
+  parent rebuild that constructs an inline config no longer destroys
+  the in-flight ad.
+- App Open ads pre-warm immediately after dismiss so the next foreground
+  is instant. Expired cached ads are detected by `isAdLoaded` and
+  refreshed proactively.
+
+### ⚡ Cold start
+
+- `ApslAds.initialize()` no longer blocks on three sequential ad loads.
+  Preloads run in parallel, in the background, after the SDK init
+  completes — typically saves 2–5 seconds on time-to-`runApp`.
+- App Open ads no longer auto-show on the first preload at app start
+  (they used to pop over the splash screen).
+
+### 🛠 Reliability fixes
+
+- **Multicast callback model**: replaced single-field `onAdLoaded` etc.
+  with `addOnAdLoaded(cb)` / `clearListeners()`. Previously, when both
+  the event controller and a widget tried to attach to the same ad,
+  one silently overwrote the other — breaking
+  `ApslAds.instance.onEvent` for banner/native ads and rendering
+  sequence ads non-functional.
+- `createBanner` and `createNative` actually wire up the
+  `onAdFailedToLoad` / `onAdShowed` parameters now (they were silently
+  dropped before).
+- `createNative` now calls `setupEvents`, fixing the bug where native
+  ad events never reached the broadcast stream at all.
+- `loadAndShowRewardedAd` rewritten: instant show on cache hit, hard
+  wait timeout, properly returns `Future<bool>`, scoped subscription,
+  filtered by ad network.
+- Native ad's `onAdShowed` now fires exactly once per loaded ad via
+  the SDK's `onAdImpression` listener — previously it fired on every
+  widget rebuild, inflating impression analytics.
+- Load generation tokens discard stale callbacks from a load that was
+  already cancelled by a timeout, fixing a race that could clobber a
+  freshly-loaded ad.
+- App Open retry timer is now cancellable and bounded with
+  exponential backoff. The previous `Future.delayed`-based retry could
+  fire on a disposed instance and stack unbounded retries on a flaky
+  network.
+- Banner load timeout path consolidated into a single
+  `_handleLoadFailure` so the timeout case correctly fires
+  `onBannerAdReadyForSetState` (previously the widget would spin forever
+  on timeout).
+- `destroyAds()` now disposes the lifecycle reactor and load resumer
+  in addition to the ads, fixing duplicate-listener leaks across
+  destroy + re-initialize cycles.
+- Sequence banner / native widgets no longer reset their cursor to 0
+  and infinite-loop when all configured networks fail.
+
+### 🔧 API changes (breaking)
+
+- `ApslAds.initialize()` no longer accepts `preloadRewardedAds`,
+  `blockAppOpenAd`, `onAdFailedToLoad`, or `onAdShowed`. Configure
+  preloading via `RewardedAdConfig.preLoadRewardedAds`, and use the
+  per-ad listener API for callbacks.
+- `ApslAds.initialize()` now accepts `interstitialAdConfig` and
+  `rewardedAdConfig` parameters. Use them to tune retry policy,
+  timeouts, and immersive mode for the two highest-revenue formats —
+  these were previously hardcoded with no way to override.
+- `ApslAdBase` no longer exposes single-field callback slots
+  (`onAdLoaded`, `onAdShowed`, `onAdFailedToLoad`, etc.). Replace
+  `ad.onAdLoaded = cb` with `ad.addOnAdLoaded(cb)`. Multiple subscribers
+  can now coexist on the same ad.
+- `loadAndShowRewardedAd` now returns `Future<bool>` instead of `bool`
+  and accepts a `waitTimeout` parameter (default 10 s).
+- `BannerAdConfig` / `NativeAdConfig` / `InterstitialAdConfig` /
+  `RewardedAdConfig` gained `useExponentialBackoff` and `maxRetryDelay`
+  parameters; the meaning of `retryDelay` changed from "fixed delay"
+  to "base delay for backoff". The default value also dropped from
+  30 s to 2 s.
+- The unused `shared_preferences` dependency has been removed.
+- Added `connectivity_plus` as a new dependency.
+
+### 🧹 Internal cleanup
+
+- Removed four duplicate copies of fragile error-string matching in
+  favor of a single shared `mapLoadAdError` helper.
+- Moved the `forceStopToLoadAds` global out of the test ID manager into
+  its own `ad_loading_gate.dart`. The barrel file re-exports it, so
+  existing imports keep working.
+- `_appLifecycleReactor` is now nullable instead of `late final`.
+
+---
+
 ## 🚀 Version 1.6.0 - Updated Package Versions
 
 **Release Date:** Jan 29, 2026
