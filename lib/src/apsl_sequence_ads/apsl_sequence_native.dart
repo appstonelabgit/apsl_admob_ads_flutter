@@ -41,6 +41,7 @@ class ApslSequenceNativeAd extends StatefulWidget {
 
 class _ApslSequenceNativeAdState extends State<ApslSequenceNativeAd> {
   int _currentADNetworkIndex = 0;
+  bool _exhausted = false;
   StreamSubscription? _streamSubscription;
 
   @override
@@ -51,10 +52,9 @@ class _ApslSequenceNativeAdState extends State<ApslSequenceNativeAd> {
 
   @override
   Widget build(BuildContext context) {
+    if (_exhausted) return const SizedBox();
+
     final length = widget.orderOfAdNetworks.length;
-    if (_currentADNetworkIndex >= length) {
-      _currentADNetworkIndex = 0;
-    }
 
     while (_currentADNetworkIndex < length) {
       if (_isNativeIdAvailable(
@@ -64,6 +64,11 @@ class _ApslSequenceNativeAdState extends State<ApslSequenceNativeAd> {
 
       _currentADNetworkIndex++;
     }
+
+    // No remaining configured networks have a native id — give up
+    // permanently for this widget instance instead of looping back to 0
+    // and re-rendering the same dud network forever.
+    _exhausted = true;
     return const SizedBox();
   }
 

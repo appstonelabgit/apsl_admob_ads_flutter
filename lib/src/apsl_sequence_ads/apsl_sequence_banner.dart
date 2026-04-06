@@ -26,6 +26,7 @@ class ApslSequenceBannerAd extends StatefulWidget {
 
 class _ApslSequenceBannerAdState extends State<ApslSequenceBannerAd> {
   int _currentADNetworkIndex = 0;
+  bool _exhausted = false;
   StreamSubscription? _streamSubscription;
 
   @override
@@ -36,11 +37,9 @@ class _ApslSequenceBannerAdState extends State<ApslSequenceBannerAd> {
 
   @override
   Widget build(BuildContext context) {
+    if (_exhausted) return const SizedBox();
+
     final length = widget.orderOfAdNetworks.length;
-    if (_currentADNetworkIndex >= length) {
-      // return const SizedBox();
-      _currentADNetworkIndex = 0;
-    }
 
     while (_currentADNetworkIndex < length) {
       if (_isBannerIdAvailable(
@@ -50,6 +49,11 @@ class _ApslSequenceBannerAdState extends State<ApslSequenceBannerAd> {
 
       _currentADNetworkIndex++;
     }
+
+    // No remaining configured networks have a banner id — give up
+    // permanently for this widget instance instead of looping back to 0
+    // and re-rendering the same dud network forever.
+    _exhausted = true;
     return const SizedBox();
   }
 
