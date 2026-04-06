@@ -4,6 +4,7 @@ import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import 'package:apsl_admob_ads_flutter/src/apsl_admob/apsl_admob_interstitial_ad.dart';
 import 'package:apsl_admob_ads_flutter/src/apsl_admob/apsl_admob_native_ad.dart';
 import 'package:apsl_admob_ads_flutter/src/apsl_admob/apsl_admob_rewarded_ad.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/ad_load_resumer.dart';
 import 'package:apsl_admob_ads_flutter/src/utils/apsl_event_controller.dart';
 import 'package:apsl_admob_ads_flutter/src/utils/apsl_logger.dart';
 import 'package:apsl_admob_ads_flutter/src/utils/auto_hiding_loader_dialogue.dart';
@@ -22,6 +23,10 @@ class ApslAds {
   /// Optional — only created when [initialize] is called with
   /// `isShowAppOpenOnAppStateChange: true`.
   AppLifecycleReactor? _appLifecycleReactor;
+
+  /// Re-arms ad loads when the device regains connectivity or the app
+  /// returns to the foreground. Created lazily on first [initialize].
+  AdLoadResumer? _loadResumer;
 
   final _eventController = ApslEventController();
   Stream<AdEvent> get onEvent => _eventController.onEvent;
@@ -137,6 +142,11 @@ class ApslAds {
           break;
       }
     }
+
+    // Begin watching for connectivity / lifecycle signals so any ad that
+    // exhausts its retry budget on a flaky network gets a fresh chance
+    // when the network recovers — without users having to restart the app.
+    _loadResumer ??= AdLoadResumer(adsProvider: () => _allAds)..start();
   }
 
   /// Creates a banner ad for the specified ad network.
