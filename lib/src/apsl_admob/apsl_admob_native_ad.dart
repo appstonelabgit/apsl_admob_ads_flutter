@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/ad_error_mapper.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/retry_policy.dart';
 import 'package:flutter/material.dart';
 
 /// A class encapsulating the logic for AdMob's Native Ads.
@@ -18,14 +20,13 @@ class ApslAdmobNativeAd extends ApslAdBase {
   bool _maxRetriesReached = false;
   Timer? _retryTimer;
   Timer? _loadTimeoutTimer;
+  int _loadGeneration = 0;
+
+  /// Set once per loaded ad instance to make sure `onAdShowed` fires
+  /// exactly one time, regardless of how many widget rebuilds happen.
+  bool _impressionFired = false;
 
   /// Creates a new [ApslAdmobNativeAd] instance
-  ///
-  /// [adUnitId] - The AdMob ad unit ID for the native ad
-  /// [adRequest] - Optional custom ad request configuration
-  /// [nativeTemplateStyle] - Optional template style for the native ad
-  /// [templateType] - The type of template to use (small, medium, or custom)
-  /// [config] - Optional configuration for retry behavior and loading settings
   ApslAdmobNativeAd(
     super.adUnitId, {
     AdRequest? adRequest,
@@ -57,9 +58,13 @@ class ApslAdmobNativeAd extends ApslAdBase {
     _isAdLoaded = false;
     _isLoading = false;
     _retryTimer?.cancel();
+    _retryTimer = null;
     _loadTimeoutTimer?.cancel();
+    _loadTimeoutTimer = null;
     _retryCount = 0;
     _maxRetriesReached = false;
+    _impressionFired = false;
+    _loadGeneration++;
     if (_nativeAd != null) {
       _nativeAd!.dispose();
       _nativeAd = null;
@@ -71,8 +76,11 @@ class ApslAdmobNativeAd extends ApslAdBase {
   Future<void> load() async {
     if (_isLoading || _isAdLoaded) return;
     _isLoading = true;
+    _impressionFired = false;
     _loadTimeoutTimer?.cancel();
     _retryTimer?.cancel();
+
+    final generation = ++_loadGeneration;
 
     if (_nativeAd != null) {
       await _nativeAd!.dispose();
@@ -80,76 +88,102 @@ class ApslAdmobNativeAd extends ApslAdBase {
     }
     _isAdLoaded = false;
 
-    // Setup timeout if configured
-    if (_config.loadTimeout != null) {
-      _loadTimeoutTimer = Timer(_config.loadTimeout!, () {
-        if (!_isAdLoaded) {
-          _isLoading = false;
-          _handleError(AdErrorType.timeout,
-              errorMessage: 'Native ad load timed out');
-        }
+    final timeout = _config.loadTimeout;
+    if (timeout != null) {
+      _loadTimeoutTimer = Timer(timeout, () {
+        if (generation != _loadGeneration || _isAdLoaded) return;
+        _isLoading = false;
+        _handleError(
+          AdErrorType.timeout,
+          errorMessage: 'Native ad load timed out',
+        );
       });
     }
 
-    _nativeAd = NativeAd(
-      adUnitId: adUnitId,
-      listener: NativeAdListener(
-        onAdLoaded: (ad) async {
-          _isAdLoaded = true;
-          _isLoading = false;
-          _retryCount = 0;
-          _maxRetriesReached = false;
-          _loadTimeoutTimer?.cancel();
-          _nativeAd = ad as NativeAd?;
-          onAdLoaded?.call(adNetwork, adUnitType, ad);
-          onNativeAdReadyForSetState?.call(adNetwork, adUnitType, ad);
-        },
-        onAdFailedToLoad: (ad, error) {
-          _isAdLoaded = false;
-          _isLoading = false;
-          _nativeAd = null;
-          ad.dispose();
-          _loadTimeoutTimer?.cancel();
-          final errorType = _mapErrorToType(error);
-          onAdFailedToLoad?.call(adNetwork, adUnitType, ad,
-              errorMessage: error.toString());
-          _handleError(errorType, errorMessage: error.toString(), ad: ad);
-        },
-      ),
-      nativeTemplateStyle: nativeTemplateStyle ?? getTemplate(),
-      request: _adRequest,
-    )..load();
+    try {
+      _nativeAd = NativeAd(
+        adUnitId: adUnitId,
+        listener: NativeAdListener(
+          onAdLoaded: (ad) {
+            if (generation != _loadGeneration) {
+              ad.dispose();
+              return;
+            }
+            _isAdLoaded = true;
+            _isLoading = false;
+            _retryCount = 0;
+            _maxRetriesReached = false;
+            _loadTimeoutTimer?.cancel();
+            _nativeAd = ad as NativeAd?;
+            onAdLoaded?.call(adNetwork, adUnitType, ad);
+            onNativeAdReadyForSetState?.call(adNetwork, adUnitType, ad);
+          },
+          onAdFailedToLoad: (ad, error) {
+            if (generation != _loadGeneration) {
+              ad.dispose();
+              return;
+            }
+            _isAdLoaded = false;
+            _isLoading = false;
+            _nativeAd = null;
+            ad.dispose();
+            _loadTimeoutTimer?.cancel();
+            _handleError(
+              mapLoadAdError(error),
+              errorMessage: error.toString(),
+            );
+          },
+          onAdImpression: (ad) {
+            // Fire impression callback exactly once per loaded ad. The
+            // SDK guarantees this is called when the ad is actually
+            // visible to the user, which is the right signal for analytics.
+            if (_impressionFired) return;
+            _impressionFired = true;
+            onAdShowed?.call(adNetwork, adUnitType, ad);
+          },
+          onAdClicked: (ad) => onAdClicked?.call(adNetwork, adUnitType, ad),
+        ),
+        nativeTemplateStyle: nativeTemplateStyle ?? getTemplate(),
+        request: _adRequest,
+      )..load();
+    } catch (e) {
+      if (generation != _loadGeneration) return;
+      _isLoading = false;
+      _loadTimeoutTimer?.cancel();
+      _handleError(AdErrorType.unknown, errorMessage: e.toString());
+    }
   }
 
-  /// Maps the Mobile Ads error to [AdErrorType]
-  AdErrorType _mapErrorToType(dynamic error) {
-    final errorStr = error.toString().toLowerCase();
-    if (errorStr.contains('network')) return AdErrorType.networkError;
-    if (errorStr.contains('timeout')) return AdErrorType.timeout;
-    if (errorStr.contains('no fill')) return AdErrorType.noFill;
-    if (errorStr.contains('internal')) return AdErrorType.internalError;
-    if (errorStr.contains('invalid')) return AdErrorType.invalidAdUnit;
-    return AdErrorType.unknown;
-  }
-
-  /// Handles ad load errors, retrying if enabled and under max retries
-  void _handleError(AdErrorType errorType, {String? errorMessage, Object? ad}) {
+  /// Handles ad load errors, retrying with exponential backoff if enabled
+  /// and under [NativeAdConfig.maxRetries].
+  void _handleError(AdErrorType errorType,
+      {String? errorMessage, Object? ad}) {
     onAdFailedToLoad?.call(
       adNetwork,
       adUnitType,
       ad,
       errorMessage: errorMessage ?? errorType.message,
     );
-    if (_config.enableAutoRetry && _retryCount < _config.maxRetries) {
+
+    final canRetry = _config.enableAutoRetry &&
+        isErrorRetryable(errorType) &&
+        _retryCount < _config.maxRetries;
+
+    if (canRetry) {
+      final delay = _config.useExponentialBackoff
+          ? nextBackoff(
+              _retryCount,
+              base: _config.retryDelay,
+              maxDelay: _config.maxRetryDelay,
+            )
+          : _config.retryDelay;
       _retryCount++;
-      _retryTimer = Timer(_config.retryDelay, () {
-        if (!_isAdLoaded) load();
+      _retryTimer = Timer(delay, () {
+        if (!_isAdLoaded && !_isLoading) load();
       });
     } else {
-      // Max retries reached - set flag and reset retry count
       _maxRetriesReached = true;
       _retryCount = 0;
-      // Notify widget to rebuild
       onNativeAdReadyForSetState?.call(adNetwork, adUnitType, ad);
     }
   }
@@ -185,7 +219,10 @@ class ApslAdmobNativeAd extends ApslAdBase {
     );
   }
 
-  /// Displays the loaded native ad, or a loading/placeholder widget if not ready.
+  /// Displays the loaded native ad, or a loading/placeholder widget if not
+  /// ready. Note: this method is intentionally side-effect-free with respect
+  /// to analytics — `onAdShowed` is fired by the SDK's `onAdImpression`
+  /// listener exactly once, not on every rebuild.
   @override
   Widget show() {
     if (_maxRetriesReached) {
@@ -193,26 +230,20 @@ class ApslAdmobNativeAd extends ApslAdBase {
     }
 
     if (_nativeAd == null || !_isAdLoaded) {
-      load();
+      if (!_isLoading) load();
       return _config.loadingWidget ?? const SizedBox.shrink();
     }
-    onAdShowed?.call(adNetwork, adUnitType, _nativeAd);
     return Center(
       child: SizedBox(
         width: 400,
         height: customHeight ??
-            (_templateType == TemplateType.small
-                ? 120
-                : 350), // Or whatever fits
+            (_templateType == TemplateType.small ? 120 : 350),
         child: AdWidget(ad: _nativeAd!),
       ),
     );
   }
 
-  /// Manually triggers a retry of the ad load
-  ///
-  /// This method can be called to manually retry loading the ad,
-  /// useful for implementing custom retry logic in the UI.
+  /// Manually triggers a retry of the ad load.
   Future<void> retry() async {
     _retryCount = 0;
     _maxRetriesReached = false;

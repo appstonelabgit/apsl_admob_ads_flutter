@@ -1,15 +1,21 @@
+import 'dart:async';
+
 import 'package:apsl_admob_ads_flutter/src/apsl_ad_base.dart';
 import 'package:apsl_admob_ads_flutter/src/config/interstitial_ad_config.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_error_type.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_network.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_unit_type.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/ad_error_mapper.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/retry_policy.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'dart:async';
 
 /// A class that encapsulates the logic for AdMob's Interstitial Ads.
 ///
-/// This class handles the creation, loading, and display of AdMob interstitial ads.
-/// It includes configurable retry logic, enhanced error handling, and timeout support.
+/// This class handles the creation, loading, and display of AdMob interstitial
+/// ads. It includes configurable retry logic with exponential backoff,
+/// error-code-based classification, and timeout support. Stale callbacks
+/// from a load that has already been cancelled by a timeout are ignored via
+/// a generation token.
 class ApslAdmobInterstitialAd extends ApslAdBase {
   final AdRequest _adRequest;
   final InterstitialAdConfig _config;
@@ -21,12 +27,13 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
   Timer? _retryTimer;
   Timer? _loadTimeoutTimer;
 
+  /// Monotonically increasing token used to identify the current in-flight
+  /// load. Stale callbacks from a previous load (e.g. one that was already
+  /// timed out) check this and bail out instead of clobbering newer state.
+  int _loadGeneration = 0;
+
   /// Creates a new [ApslAdmobInterstitialAd] instance
-  ///
-  /// [adUnitId] - The AdMob ad unit ID for the interstitial ad
-  /// [adRequest] - Optional custom ad request configuration
-  /// [config] - Optional configuration for retry behavior and loading settings
-  ApslAdmobInterstitialAd(  
+  ApslAdmobInterstitialAd(
     super.adUnitId, {
     AdRequest? adRequest,
     InterstitialAdConfig? config,
@@ -50,8 +57,11 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
     _isAdLoaded = false;
     _isLoading = false;
     _retryTimer?.cancel();
+    _retryTimer = null;
     _loadTimeoutTimer?.cancel();
+    _loadTimeoutTimer = null;
     _retryCount = 0;
+    _loadGeneration++; // invalidate any in-flight callbacks
     _interstitialAd?.dispose();
     _interstitialAd = null;
   }
@@ -64,54 +74,63 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
     _loadTimeoutTimer?.cancel();
     _retryTimer?.cancel();
 
+    final generation = ++_loadGeneration;
+
     // Setup timeout if configured
-    if (_config.loadTimeout != null) {
-      _loadTimeoutTimer = Timer(_config.loadTimeout!, () {
-        if (!_isAdLoaded) {
-          _isLoading = false;
-          _handleError(AdErrorType.timeout,
-              errorMessage: 'Interstitial ad load timed out');
-        }
+    final timeout = _config.loadTimeout;
+    if (timeout != null) {
+      _loadTimeoutTimer = Timer(timeout, () {
+        if (generation != _loadGeneration || _isAdLoaded) return;
+        _isLoading = false;
+        _handleError(
+          AdErrorType.timeout,
+          errorMessage: 'Interstitial ad load timed out',
+        );
       });
     }
 
-    await InterstitialAd.load(
-      adUnitId: adUnitId,
-      request: _adRequest,
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (InterstitialAd ad) {
-          _interstitialAd?.dispose(); // Clean up previous instance
-          _interstitialAd = ad;
-          _isAdLoaded = true;
-          _isLoading = false;
-          _retryCount = 0;
-          _loadTimeoutTimer?.cancel();
-          onAdLoaded?.call(adNetwork, adUnitType, ad);
-        },
-        onAdFailedToLoad: (LoadAdError error) {
-          _interstitialAd = null;
-          _isAdLoaded = false;
-          _isLoading = false;
-          _loadTimeoutTimer?.cancel();
-          final errorType = _mapErrorToType(error);
-          _handleError(errorType, errorMessage: error.toString());
-        },
-      ),
-    );
+    try {
+      await InterstitialAd.load(
+        adUnitId: adUnitId,
+        request: _adRequest,
+        adLoadCallback: InterstitialAdLoadCallback(
+          onAdLoaded: (InterstitialAd ad) {
+            // Ignore late callbacks for a load that was superseded.
+            if (generation != _loadGeneration) {
+              ad.dispose();
+              return;
+            }
+            _interstitialAd?.dispose();
+            _interstitialAd = ad;
+            _isAdLoaded = true;
+            _isLoading = false;
+            _retryCount = 0;
+            _loadTimeoutTimer?.cancel();
+            onAdLoaded?.call(adNetwork, adUnitType, ad);
+          },
+          onAdFailedToLoad: (LoadAdError error) {
+            if (generation != _loadGeneration) return;
+            _interstitialAd = null;
+            _isAdLoaded = false;
+            _isLoading = false;
+            _loadTimeoutTimer?.cancel();
+            _handleError(
+              mapLoadAdError(error),
+              errorMessage: error.toString(),
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (generation != _loadGeneration) return;
+      _isLoading = false;
+      _loadTimeoutTimer?.cancel();
+      _handleError(AdErrorType.unknown, errorMessage: e.toString());
+    }
   }
 
-  /// Maps the Mobile Ads error to [AdErrorType]
-  AdErrorType _mapErrorToType(LoadAdError error) {
-    final errorStr = error.toString().toLowerCase();
-    if (errorStr.contains('network')) return AdErrorType.networkError;
-    if (errorStr.contains('timeout')) return AdErrorType.timeout;
-    if (errorStr.contains('no fill')) return AdErrorType.noFill;
-    if (errorStr.contains('internal')) return AdErrorType.internalError;
-    if (errorStr.contains('invalid')) return AdErrorType.invalidAdUnit;
-    return AdErrorType.unknown;
-  }
-
-  /// Handles ad load errors, retrying if enabled and under max retries
+  /// Handles ad load errors, retrying with exponential backoff if enabled
+  /// and under [InterstitialAdConfig.maxRetries].
   void _handleError(AdErrorType errorType, {String? errorMessage}) {
     onAdFailedToLoad?.call(
       adNetwork,
@@ -119,12 +138,21 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
       null,
       errorMessage: errorMessage ?? errorType.message,
     );
-    if (_config.enableAutoRetry && _retryCount < _config.maxRetries) {
-      _retryCount++;
-      _retryTimer = Timer(_config.retryDelay, () {
-        if (!_isAdLoaded) load();
-      });
-    }
+
+    if (!_config.enableAutoRetry || !isErrorRetryable(errorType)) return;
+    if (_retryCount >= _config.maxRetries) return;
+
+    final delay = _config.useExponentialBackoff
+        ? nextBackoff(
+            _retryCount,
+            base: _config.retryDelay,
+            maxDelay: _config.maxRetryDelay,
+          )
+        : _config.retryDelay;
+    _retryCount++;
+    _retryTimer = Timer(delay, () {
+      if (!_isAdLoaded && !_isLoading) load();
+    });
   }
 
   @override
@@ -170,10 +198,10 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
     }
   }
 
-  /// Manually triggers a retry of the ad load
+  /// Manually triggers a retry of the ad load.
   ///
-  /// This method can be called to manually retry loading the ad,
-  /// useful for implementing custom retry logic in the UI.
+  /// Resets the retry counter so the user-initiated retry gets a fresh
+  /// budget of [InterstitialAdConfig.maxRetries] attempts.
   Future<void> retry() async {
     _retryCount = 0;
     await load();

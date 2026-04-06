@@ -1,17 +1,22 @@
+import 'dart:async';
+
 import 'package:apsl_admob_ads_flutter/src/apsl_ad_base.dart';
 import 'package:apsl_admob_ads_flutter/src/config/banner_ad_config.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_error_type.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_network.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_unit_type.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/ad_error_mapper.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/retry_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'dart:async';
 
-/// AdMob implementation of banner ads
+/// AdMob implementation of banner ads.
 ///
 /// This class handles the creation, loading, and display of AdMob banner ads.
-/// It includes configurable retry logic, enhanced error handling, and support
-/// for loading placeholders.
+/// It includes configurable retry logic with exponential backoff, error-code-
+/// based classification, support for loading placeholders, and a generation
+/// token to discard stale callbacks from a load that has already been
+/// cancelled.
 class ApslAdmobBannerAd extends ApslAdBase {
   final AdRequest _adRequest;
   final AdSize adSize;
@@ -38,12 +43,10 @@ class ApslAdmobBannerAd extends ApslAdBase {
   /// Timer for load timeout
   Timer? _loadTimeoutTimer;
 
+  /// Monotonically increasing token used to discard stale callbacks.
+  int _loadGeneration = 0;
+
   /// Creates a new [ApslAdmobBannerAd] instance
-  ///
-  /// [adUnitId] - The AdMob ad unit ID for the banner ad
-  /// [adRequest] - Optional custom ad request configuration
-  /// [adSize] - The size of the banner ad (defaults to standard banner)
-  /// [config] - Optional configuration for retry behavior and loading settings
   ApslAdmobBannerAd(
     super.adUnitId, {
     AdRequest? adRequest,
@@ -77,6 +80,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
     _isLoading = false;
     _retryCount = 0;
     _maxRetriesReached = false;
+    _loadGeneration++;
     _bannerAd?.dispose();
     _bannerAd = null;
   }
@@ -89,76 +93,61 @@ class ApslAdmobBannerAd extends ApslAdBase {
     _loadTimeoutTimer = null;
   }
 
-  /// Determines the error type from a LoadAdError message
-  AdErrorType _getErrorType(LoadAdError error) {
-    final errorMessage = error.message.toLowerCase();
-
-    if (errorMessage.contains('network') || errorMessage.contains('connect')) {
-      return AdErrorType.networkError;
-    } else if (errorMessage.contains('invalid') ||
-        errorMessage.contains('request')) {
-      return AdErrorType.invalidAdUnit;
-    } else if (errorMessage.contains('timeout')) {
-      return AdErrorType.timeout;
-    } else if (errorMessage.contains('no fill') ||
-        errorMessage.contains('no ad')) {
-      return AdErrorType.noFill;
-    } else if (errorMessage.contains('internal')) {
-      return AdErrorType.internalError;
-    } else {
-      return AdErrorType.unknown;
-    }
-  }
-
-  /// Handles ad loading failure with retry logic
-  void _handleLoadFailure(Ad ad, LoadAdError error) {
+  /// Single entry point for handling any load failure (SDK error or timeout).
+  ///
+  /// Schedules an exponential-backoff retry when applicable; otherwise marks
+  /// the slot as exhausted and notifies the widget to rebuild.
+  void _handleLoadFailure(
+    AdErrorType errorType, {
+    required String errorMessage,
+    Ad? ad,
+  }) {
     _isAdLoaded = false;
     _isLoading = false;
     _cancelTimers();
 
-    final errorType = _getErrorType(error);
-
-    // Call the failure callback with detailed error information
     onAdFailedToLoad?.call(
       adNetwork,
       adUnitType,
       ad,
-      errorMessage: '${errorType.message} (${error.message})',
+      errorMessage: errorMessage,
     );
 
-    ad.dispose();
+    ad?.dispose();
 
-    // Retry logic
-    if (_config.enableAutoRetry && _retryCount < _config.maxRetries) {
+    final canRetry = _config.enableAutoRetry &&
+        isErrorRetryable(errorType) &&
+        _retryCount < _config.maxRetries;
+
+    if (canRetry) {
+      final delay = _config.useExponentialBackoff
+          ? nextBackoff(
+              _retryCount,
+              base: _config.retryDelay,
+              maxDelay: _config.maxRetryDelay,
+            )
+          : _config.retryDelay;
       _retryCount++;
-      _retryTimer = Timer(_config.retryDelay, () {
-        if (!_isAdLoaded && !_isLoading) {
-          load();
-        }
+      _retryTimer = Timer(delay, () {
+        if (!_isAdLoaded && !_isLoading) load();
       });
     } else {
-      // Max retries reached - set flag and reset retry count
+      // Max retries reached or error not retryable - notify widget to rebuild.
       _maxRetriesReached = true;
       _retryCount = 0;
-      // Notify widget to rebuild
       onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
     }
   }
 
   @override
   Future<void> load() async {
-    // Prevent redundant calls
-    if (_isLoading) {
-      return;
-    }
-
-    // If already loaded, don't reload unless explicitly requested
-    if (_isAdLoaded && _bannerAd != null) {
-      return;
-    }
+    if (_isLoading) return;
+    if (_isAdLoaded && _bannerAd != null) return;
 
     _isLoading = true;
     _cancelTimers();
+
+    final generation = ++_loadGeneration;
 
     // Dispose existing ad if any
     await _bannerAd?.dispose();
@@ -166,60 +155,59 @@ class ApslAdmobBannerAd extends ApslAdBase {
     _isAdLoaded = false;
 
     // Set up load timeout if configured
-    if (_config.loadTimeout != null) {
-      _loadTimeoutTimer = Timer(_config.loadTimeout!, () {
-        if (_isLoading) {
-          // Handle timeout by calling failure callback directly
-          onAdFailedToLoad?.call(
-            adNetwork,
-            adUnitType,
-            _bannerAd,
-            errorMessage:
-                'Ad load timeout after ${_config.loadTimeout!.inSeconds} seconds',
-          );
-          _isAdLoaded = false;
-          _isLoading = false;
-          _cancelTimers();
-
-          // Retry logic for timeout
-          if (_config.enableAutoRetry && _retryCount < _config.maxRetries) {
-            _retryCount++;
-            _retryTimer = Timer(_config.retryDelay, () {
-              if (!_isAdLoaded && !_isLoading) {
-                load();
-              }
-            });
-          } else {
-            // Max retries reached - set flag and reset retry count
-            _maxRetriesReached = true;
-            _retryCount = 0;
-          }
-        }
+    final timeout = _config.loadTimeout;
+    if (timeout != null) {
+      _loadTimeoutTimer = Timer(timeout, () {
+        if (generation != _loadGeneration || !_isLoading) return;
+        _handleLoadFailure(
+          AdErrorType.timeout,
+          errorMessage:
+              'Banner ad load timeout after ${timeout.inSeconds} seconds',
+        );
       });
     }
 
-    _bannerAd = BannerAd(
-      size: adSize,
-      adUnitId: adUnitId,
-      listener: BannerAdListener(
-        onAdLoaded: (Ad ad) {
-          _cancelTimers();
-          _bannerAd = ad as BannerAd;
-          _isAdLoaded = true;
-          _isLoading = false;
-          _retryCount = 0; // Reset retry count on successful load
-          _maxRetriesReached = false; // Reset max retries flag
+    try {
+      _bannerAd = BannerAd(
+        size: adSize,
+        adUnitId: adUnitId,
+        listener: BannerAdListener(
+          onAdLoaded: (Ad ad) {
+            if (generation != _loadGeneration) {
+              ad.dispose();
+              return;
+            }
+            _cancelTimers();
+            _bannerAd = ad as BannerAd;
+            _isAdLoaded = true;
+            _isLoading = false;
+            _retryCount = 0;
+            _maxRetriesReached = false;
 
-          onAdLoaded?.call(adNetwork, adUnitType, ad);
-          onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
-        },
-        onAdFailedToLoad: _handleLoadFailure,
-        onAdOpened: (Ad ad) => onAdClicked?.call(adNetwork, adUnitType, ad),
-        onAdClosed: (Ad ad) => onAdDismissed?.call(adNetwork, adUnitType, ad),
-        onAdImpression: (Ad ad) => onAdShowed?.call(adNetwork, adUnitType, ad),
-      ),
-      request: _adRequest,
-    )..load();
+            onAdLoaded?.call(adNetwork, adUnitType, ad);
+            onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
+          },
+          onAdFailedToLoad: (Ad ad, LoadAdError error) {
+            if (generation != _loadGeneration) {
+              ad.dispose();
+              return;
+            }
+            _handleLoadFailure(
+              mapLoadAdError(error),
+              errorMessage: '${mapLoadAdError(error).message} (${error.message})',
+              ad: ad,
+            );
+          },
+          onAdOpened: (Ad ad) => onAdClicked?.call(adNetwork, adUnitType, ad),
+          onAdClosed: (Ad ad) => onAdDismissed?.call(adNetwork, adUnitType, ad),
+          onAdImpression: (Ad ad) => onAdShowed?.call(adNetwork, adUnitType, ad),
+        ),
+        request: _adRequest,
+      )..load();
+    } catch (e) {
+      if (generation != _loadGeneration) return;
+      _handleLoadFailure(AdErrorType.unknown, errorMessage: e.toString());
+    }
   }
 
   @override
@@ -229,14 +217,14 @@ class ApslAdmobBannerAd extends ApslAdBase {
       return const SizedBox.shrink();
     }
 
-    // If ad is not loaded, trigger load and show loading widget
+    // If ad is not loaded, trigger load and show loading widget.
+    // The load() call is internally guarded by _isLoading so reentrant
+    // build() invocations don't stack up requests.
     if (_bannerAd == null || !_isAdLoaded) {
-      // Only load if not already loading to prevent redundant calls
       if (!_isLoading) {
         load();
       }
 
-      // Return loading widget or default placeholder
       return _config.loadingWidget ??
           SizedBox(
             height: adSize.height.toDouble(),
@@ -247,7 +235,6 @@ class ApslAdmobBannerAd extends ApslAdBase {
           );
     }
 
-    // Return the loaded ad widget
     return Container(
       alignment: Alignment.center,
       height: adSize.height.toDouble(),
@@ -256,10 +243,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
     );
   }
 
-  /// Manually triggers a retry of the ad load
-  ///
-  /// This method can be called to manually retry loading the ad,
-  /// useful for implementing custom retry logic in the UI.
+  /// Manually triggers a retry of the ad load.
   Future<void> retry() async {
     _retryCount = 0;
     _maxRetriesReached = false;

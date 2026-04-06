@@ -1,15 +1,19 @@
+import 'dart:async';
+
 import 'package:apsl_admob_ads_flutter/src/apsl_ad_base.dart';
 import 'package:apsl_admob_ads_flutter/src/config/rewarded_ad_config.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_error_type.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_network.dart';
 import 'package:apsl_admob_ads_flutter/src/enums/ad_unit_type.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/ad_error_mapper.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/retry_policy.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'dart:async';
 
 /// A class that encapsulates the logic for AdMob's Rewarded Ads.
 ///
-/// This class handles the creation, loading, and display of AdMob rewarded ads.
-/// It includes configurable retry logic, enhanced error handling, and timeout support.
+/// Includes configurable retry logic with exponential backoff, error-code-
+/// based classification, timeout support, and a generation token to discard
+/// stale callbacks from a load that has already been cancelled.
 class ApslAdmobRewardedAd extends ApslAdBase {
   final AdRequest _adRequest;
   final RewardedAdConfig _config;
@@ -20,12 +24,9 @@ class ApslAdmobRewardedAd extends ApslAdBase {
   int _retryCount = 0;
   Timer? _retryTimer;
   Timer? _loadTimeoutTimer;
+  int _loadGeneration = 0;
 
   /// Creates a new [ApslAdmobRewardedAd] instance
-  ///
-  /// [adUnitId] - The AdMob ad unit ID for the rewarded ad
-  /// [adRequest] - Optional custom ad request configuration
-  /// [config] - Optional configuration for retry behavior and loading settings
   ApslAdmobRewardedAd(
     super.adUnitId, {
     AdRequest? adRequest,
@@ -52,8 +53,11 @@ class ApslAdmobRewardedAd extends ApslAdBase {
     _isAdLoaded = false;
     _isLoading = false;
     _retryTimer?.cancel();
+    _retryTimer = null;
     _loadTimeoutTimer?.cancel();
+    _loadTimeoutTimer = null;
     _retryCount = 0;
+    _loadGeneration++;
   }
 
   @override
@@ -64,54 +68,61 @@ class ApslAdmobRewardedAd extends ApslAdBase {
     _loadTimeoutTimer?.cancel();
     _retryTimer?.cancel();
 
-    // Setup timeout if configured
-    if (_config.loadTimeout != null) {
-      _loadTimeoutTimer = Timer(_config.loadTimeout!, () {
-        if (!_isAdLoaded) {
-          _isLoading = false;
-          _handleError(AdErrorType.timeout,
-              errorMessage: 'Rewarded ad load timed out');
-        }
+    final generation = ++_loadGeneration;
+
+    final timeout = _config.loadTimeout;
+    if (timeout != null) {
+      _loadTimeoutTimer = Timer(timeout, () {
+        if (generation != _loadGeneration || _isAdLoaded) return;
+        _isLoading = false;
+        _handleError(
+          AdErrorType.timeout,
+          errorMessage: 'Rewarded ad load timed out',
+        );
       });
     }
 
-    await RewardedAd.load(
-      adUnitId: adUnitId,
-      request: _adRequest,
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (RewardedAd ad) {
-          _rewardedAd?.dispose(); // Clean up if somehow not null
-          _rewardedAd = ad;
-          _isAdLoaded = true;
-          _isLoading = false;
-          _retryCount = 0;
-          _loadTimeoutTimer?.cancel();
-          onAdLoaded?.call(adNetwork, adUnitType, ad);
-        },
-        onAdFailedToLoad: (LoadAdError error) {
-          _rewardedAd = null;
-          _isAdLoaded = false;
-          _isLoading = false;
-          _loadTimeoutTimer?.cancel();
-          final errorType = _mapErrorToType(error);
-          _handleError(errorType, errorMessage: error.toString());
-        },
-      ),
-    );
+    try {
+      await RewardedAd.load(
+        adUnitId: adUnitId,
+        request: _adRequest,
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (RewardedAd ad) {
+            if (generation != _loadGeneration) {
+              ad.dispose();
+              return;
+            }
+            _rewardedAd?.dispose();
+            _rewardedAd = ad;
+            _isAdLoaded = true;
+            _isLoading = false;
+            _retryCount = 0;
+            _loadTimeoutTimer?.cancel();
+            onAdLoaded?.call(adNetwork, adUnitType, ad);
+          },
+          onAdFailedToLoad: (LoadAdError error) {
+            if (generation != _loadGeneration) return;
+            _rewardedAd = null;
+            _isAdLoaded = false;
+            _isLoading = false;
+            _loadTimeoutTimer?.cancel();
+            _handleError(
+              mapLoadAdError(error),
+              errorMessage: error.toString(),
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (generation != _loadGeneration) return;
+      _isLoading = false;
+      _loadTimeoutTimer?.cancel();
+      _handleError(AdErrorType.unknown, errorMessage: e.toString());
+    }
   }
 
-  /// Maps the Mobile Ads error to [AdErrorType]
-  AdErrorType _mapErrorToType(LoadAdError error) {
-    final errorStr = error.toString().toLowerCase();
-    if (errorStr.contains('network')) return AdErrorType.networkError;
-    if (errorStr.contains('timeout')) return AdErrorType.timeout;
-    if (errorStr.contains('no fill')) return AdErrorType.noFill;
-    if (errorStr.contains('internal')) return AdErrorType.internalError;
-    if (errorStr.contains('invalid')) return AdErrorType.invalidAdUnit;
-    return AdErrorType.unknown;
-  }
-
-  /// Handles ad load errors, retrying if enabled and under max retries
+  /// Handles ad load errors, retrying with exponential backoff if enabled
+  /// and under [RewardedAdConfig.maxRetries].
   void _handleError(AdErrorType errorType, {String? errorMessage}) {
     onAdFailedToLoad?.call(
       adNetwork,
@@ -119,12 +130,21 @@ class ApslAdmobRewardedAd extends ApslAdBase {
       null,
       errorMessage: errorMessage ?? errorType.message,
     );
-    if (_config.enableAutoRetry && _retryCount < _config.maxRetries) {
-      _retryCount++;
-      _retryTimer = Timer(_config.retryDelay, () {
-        if (!_isAdLoaded) load();
-      });
-    }
+
+    if (!_config.enableAutoRetry || !isErrorRetryable(errorType)) return;
+    if (_retryCount >= _config.maxRetries) return;
+
+    final delay = _config.useExponentialBackoff
+        ? nextBackoff(
+            _retryCount,
+            base: _config.retryDelay,
+            maxDelay: _config.maxRetryDelay,
+          )
+        : _config.retryDelay;
+    _retryCount++;
+    _retryTimer = Timer(delay, () {
+      if (!_isAdLoaded && !_isLoading) load();
+    });
   }
 
   @override
@@ -166,21 +186,26 @@ class ApslAdmobRewardedAd extends ApslAdBase {
     _isAdLoaded = false;
   }
 
-  /// Cleans up the ad and optionally reloads for next use
+  /// Cleans up the ad and optionally reloads for next use.
+  ///
+  /// The reload is gated only on [RewardedAdConfig.autoReloadAfterShow]
+  /// — `preLoadRewardedAds` controls whether the *initial* preload happens
+  /// at app start, but post-show preloading is what gives the next user tap
+  /// an instant ad and is the single biggest revenue lever for rewarded.
   void _cleanAndReload(RewardedAd ad) {
     ad.dispose();
     _rewardedAd = null;
     _isAdLoaded = false;
 
-    if (_config.autoReloadAfterShow && _config.preLoadRewardedAds) {
-      load(); // Preload next ad
+    if (_config.autoReloadAfterShow) {
+      load();
     }
   }
 
-  /// Manually triggers a retry of the ad load
+  /// Manually triggers a retry of the ad load.
   ///
-  /// This method can be called to manually retry loading the ad,
-  /// useful for implementing custom retry logic in the UI.
+  /// Resets the retry counter so the user-initiated retry gets a fresh
+  /// budget of [RewardedAdConfig.maxRetries] attempts.
   Future<void> retry() async {
     _retryCount = 0;
     await load();
