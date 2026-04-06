@@ -69,6 +69,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
       _nativeAd!.dispose();
       _nativeAd = null;
     }
+    clearListeners();
   }
 
   /// Loads the native ad with retry and timeout logic.
@@ -115,8 +116,8 @@ class ApslAdmobNativeAd extends ApslAdBase {
             _maxRetriesReached = false;
             _loadTimeoutTimer?.cancel();
             _nativeAd = ad as NativeAd?;
-            onAdLoaded?.call(adNetwork, adUnitType, ad);
-            onNativeAdReadyForSetState?.call(adNetwork, adUnitType, ad);
+            fireAdLoaded(ad);
+            fireNativeAdReadyForSetState(ad);
           },
           onAdFailedToLoad: (ad, error) {
             if (generation != _loadGeneration) {
@@ -139,9 +140,9 @@ class ApslAdmobNativeAd extends ApslAdBase {
             // visible to the user, which is the right signal for analytics.
             if (_impressionFired) return;
             _impressionFired = true;
-            onAdShowed?.call(adNetwork, adUnitType, ad);
+            fireAdShowed(ad);
           },
-          onAdClicked: (ad) => onAdClicked?.call(adNetwork, adUnitType, ad),
+          onAdClicked: (ad) => fireAdClicked(ad),
         ),
         nativeTemplateStyle: nativeTemplateStyle ?? getTemplate(),
         request: _adRequest,
@@ -158,12 +159,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
   /// and under [NativeAdConfig.maxRetries].
   void _handleError(AdErrorType errorType,
       {String? errorMessage, Object? ad}) {
-    onAdFailedToLoad?.call(
-      adNetwork,
-      adUnitType,
-      ad,
-      errorMessage: errorMessage ?? errorType.message,
-    );
+    fireAdFailedToLoad(ad, errorMessage ?? errorType.message);
 
     final canRetry = _config.enableAutoRetry &&
         isErrorRetryable(errorType) &&
@@ -184,7 +180,7 @@ class ApslAdmobNativeAd extends ApslAdBase {
     } else {
       _maxRetriesReached = true;
       _retryCount = 0;
-      onNativeAdReadyForSetState?.call(adNetwork, adUnitType, ad);
+      fireNativeAdReadyForSetState(ad);
     }
   }
 

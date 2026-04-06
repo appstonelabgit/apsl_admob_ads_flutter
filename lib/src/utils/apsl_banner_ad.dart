@@ -79,7 +79,11 @@ class _ApslBannerAdState extends State<ApslBannerAd> {
     }
   }
 
-  /// Initializes the banner ad with the current configuration
+  /// Initializes the banner ad with the current configuration.
+  ///
+  /// User callbacks (`widget.onAdFailedToLoad` / `widget.onAdShowed`) are
+  /// attached inside [ApslAds.createBanner] via the multicast listener API,
+  /// so we only register our internal "ready to setState" hook here.
   void _initBanner() {
     _bannerAd?.dispose();
     _bannerAd = ApslAds.instance.createBanner(
@@ -90,10 +94,8 @@ class _ApslBannerAdState extends State<ApslBannerAd> {
       onAdShowed: widget.onAdShowed,
     );
 
-    _bannerAd?.onAdLoaded = _onBannerAdReady;
-    _bannerAd?.onBannerAdReadyForSetState = _onBannerAdReady;
-    _bannerAd?.onAdFailedToLoad = widget.onAdFailedToLoad;
-    _bannerAd?.onAdShowed = widget.onAdShowed;
+    _bannerAd?.addOnAdLoaded(_onBannerAdReady);
+    _bannerAd?.addOnBannerAdReadyForSetState(_onBannerAdReady);
 
     _bannerAd?.load();
   }

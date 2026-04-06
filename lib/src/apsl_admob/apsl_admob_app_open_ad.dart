@@ -61,6 +61,7 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
     _isShowingAd = false;
     _isLoading = false;
     _retryCount = 0;
+    clearListeners();
   }
 
   /// Silently preloads an app open ad. Use this for background warming
@@ -101,7 +102,7 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
             _appOpenLoadTime = DateTime.now();
             _isLoading = false;
             _retryCount = 0;
-            onAdLoaded?.call(adNetwork, adUnitType, ad);
+            fireAdLoaded(ad);
 
             if (showAdOnLoad) show();
           },
@@ -109,12 +110,7 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
             if (generation != _loadGeneration) return;
             _appOpenAd = null;
             _isLoading = false;
-            onAdFailedToLoad?.call(
-              adNetwork,
-              adUnitType,
-              error,
-              errorMessage: error.toString(),
-            );
+            fireAdFailedToLoad(error, error.toString());
             _scheduleRetry(error, showAdOnLoad: showAdOnLoad);
           },
         ),
@@ -122,12 +118,7 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
     } catch (e) {
       if (generation != _loadGeneration) return;
       _isLoading = false;
-      onAdFailedToLoad?.call(
-        adNetwork,
-        adUnitType,
-        null,
-        errorMessage: e.toString(),
-      );
+      fireAdFailedToLoad(null, e.toString());
     }
   }
 
@@ -152,35 +143,22 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
       _appOpenAd?.dispose();
       _appOpenAd = null;
       _appOpenLoadTime = null;
-      onAdFailedToShow?.call(
-        adNetwork,
-        adUnitType,
-        null,
-        errorMessage: 'Cached ad expired. Loading a fresh one.',
-      );
+      fireAdFailedToShow(null, 'Cached ad expired. Loading a fresh one.');
       _load(showAdOnLoad: true);
       return;
     }
 
     if (!isAdLoaded) {
-      onAdFailedToShow?.call(
-        adNetwork,
-        adUnitType,
+      fireAdFailedToShow(
         null,
-        errorMessage:
-            'No ad loaded. Triggered load and will auto-show if successful.',
+        'No ad loaded. Triggered load and will auto-show if successful.',
       );
       _load(showAdOnLoad: true);
       return;
     }
 
     if (_isShowingAd) {
-      onAdFailedToShow?.call(
-        adNetwork,
-        adUnitType,
-        null,
-        errorMessage: 'Ad is already being shown.',
-      );
+      fireAdFailedToShow(null, 'Ad is already being shown.');
       return;
     }
 
@@ -190,14 +168,14 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (AppOpenAd ad) {
-        onAdShowed?.call(adNetwork, adUnitType, ad);
+        fireAdShowed(ad);
       },
       onAdDismissedFullScreenContent: (AppOpenAd ad) {
         _isShowingAd = false;
         ad.dispose();
         _appOpenAd = null;
         _appOpenLoadTime = null;
-        onAdDismissed?.call(adNetwork, adUnitType, ad);
+        fireAdDismissed(ad);
         // Pre-warm the next ad so the next foreground is instant.
         _load(showAdOnLoad: false);
       },
@@ -206,12 +184,7 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
         ad.dispose();
         _appOpenAd = null;
         _appOpenLoadTime = null;
-        onAdFailedToShow?.call(
-          adNetwork,
-          adUnitType,
-          ad,
-          errorMessage: error.toString(),
-        );
+        fireAdFailedToShow(ad, error.toString());
         // Try again so the slot doesn't stay dead.
         _load(showAdOnLoad: false);
       },

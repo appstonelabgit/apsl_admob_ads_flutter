@@ -187,6 +187,10 @@ class ApslAds {
             config: config,
           );
           _eventController.setupEvents(ad);
+          // Forward user-supplied callbacks via the multicast listener
+          // API so they coexist with the event controller's bindings.
+          if (onAdFailedToLoad != null) ad.addOnAdFailedToLoad(onAdFailedToLoad);
+          if (onAdShowed != null) ad.addOnAdShowed(onAdShowed);
         }
         break;
 
@@ -245,6 +249,9 @@ class ApslAds {
             templateType: templateType,
             config: config,
           );
+          _eventController.setupEvents(ad);
+          if (onAdFailedToLoad != null) ad.addOnAdFailedToLoad(onAdFailedToLoad);
+          if (onAdShowed != null) ad.addOnAdShowed(onAdShowed);
         }
         break;
       default:

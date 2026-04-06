@@ -70,7 +70,11 @@ class _ApslNativeAdState extends State<ApslNativeAd> {
     }
   }
 
-  /// Initializes the native ad with the current configuration
+  /// Initializes the native ad with the current configuration.
+  ///
+  /// User callbacks (`widget.onAdFailedToLoad` / `widget.onAdShowed`) are
+  /// attached inside [ApslAds.createNative] via the multicast listener API,
+  /// so we only register our internal "ready to setState" hook here.
   void _initNative() {
     _nativeAd?.dispose();
 
@@ -83,10 +87,8 @@ class _ApslNativeAdState extends State<ApslNativeAd> {
       onAdShowed: widget.onAdShowed,
     );
 
-    _nativeAd?.onAdLoaded = _onNativeAdReady;
-    _nativeAd?.onNativeAdReadyForSetState = _onNativeAdReady;
-    _nativeAd?.onAdShowed = widget.onAdShowed;
-    _nativeAd?.onAdFailedToLoad = widget.onAdFailedToLoad;
+    _nativeAd?.addOnAdLoaded(_onNativeAdReady);
+    _nativeAd?.addOnNativeAdReadyForSetState(_onNativeAdReady);
 
     _nativeAd?.load();
   }

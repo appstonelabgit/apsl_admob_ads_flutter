@@ -83,6 +83,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
     _loadGeneration++;
     _bannerAd?.dispose();
     _bannerAd = null;
+    clearListeners();
   }
 
   /// Cancels any active timers
@@ -106,12 +107,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
     _isLoading = false;
     _cancelTimers();
 
-    onAdFailedToLoad?.call(
-      adNetwork,
-      adUnitType,
-      ad,
-      errorMessage: errorMessage,
-    );
+    fireAdFailedToLoad(ad, errorMessage);
 
     ad?.dispose();
 
@@ -135,7 +131,7 @@ class ApslAdmobBannerAd extends ApslAdBase {
       // Max retries reached or error not retryable - notify widget to rebuild.
       _maxRetriesReached = true;
       _retryCount = 0;
-      onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
+      fireBannerAdReadyForSetState(ad);
     }
   }
 
@@ -184,8 +180,8 @@ class ApslAdmobBannerAd extends ApslAdBase {
             _retryCount = 0;
             _maxRetriesReached = false;
 
-            onAdLoaded?.call(adNetwork, adUnitType, ad);
-            onBannerAdReadyForSetState?.call(adNetwork, adUnitType, ad);
+            fireAdLoaded(ad);
+            fireBannerAdReadyForSetState(ad);
           },
           onAdFailedToLoad: (Ad ad, LoadAdError error) {
             if (generation != _loadGeneration) {
@@ -198,9 +194,9 @@ class ApslAdmobBannerAd extends ApslAdBase {
               ad: ad,
             );
           },
-          onAdOpened: (Ad ad) => onAdClicked?.call(adNetwork, adUnitType, ad),
-          onAdClosed: (Ad ad) => onAdDismissed?.call(adNetwork, adUnitType, ad),
-          onAdImpression: (Ad ad) => onAdShowed?.call(adNetwork, adUnitType, ad),
+          onAdOpened: (Ad ad) => fireAdClicked(ad),
+          onAdClosed: (Ad ad) => fireAdDismissed(ad),
+          onAdImpression: (Ad ad) => fireAdShowed(ad),
         ),
         request: _adRequest,
       )..load();

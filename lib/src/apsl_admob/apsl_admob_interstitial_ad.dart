@@ -64,6 +64,7 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
     _loadGeneration++; // invalidate any in-flight callbacks
     _interstitialAd?.dispose();
     _interstitialAd = null;
+    clearListeners();
   }
 
   @override
@@ -106,7 +107,7 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
             _isLoading = false;
             _retryCount = 0;
             _loadTimeoutTimer?.cancel();
-            onAdLoaded?.call(adNetwork, adUnitType, ad);
+            fireAdLoaded(ad);
           },
           onAdFailedToLoad: (LoadAdError error) {
             if (generation != _loadGeneration) return;
@@ -132,12 +133,7 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
   /// Handles ad load errors, retrying with exponential backoff if enabled
   /// and under [InterstitialAdConfig.maxRetries].
   void _handleError(AdErrorType errorType, {String? errorMessage}) {
-    onAdFailedToLoad?.call(
-      adNetwork,
-      adUnitType,
-      null,
-      errorMessage: errorMessage ?? errorType.message,
-    );
+    fireAdFailedToLoad(null, errorMessage ?? errorType.message);
 
     if (!_config.enableAutoRetry || !isErrorRetryable(errorType)) return;
     if (_retryCount >= _config.maxRetries) return;
@@ -162,19 +158,14 @@ class ApslAdmobInterstitialAd extends ApslAdBase {
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (InterstitialAd ad) {
-        onAdShowed?.call(adNetwork, adUnitType, ad);
+        fireAdShowed(ad);
       },
       onAdDismissedFullScreenContent: (InterstitialAd ad) {
-        onAdDismissed?.call(adNetwork, adUnitType, ad);
+        fireAdDismissed(ad);
         _cleanAndReload(ad);
       },
       onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
-        onAdFailedToShow?.call(
-          adNetwork,
-          adUnitType,
-          ad,
-          errorMessage: error.toString(),
-        );
+        fireAdFailedToShow(ad, error.toString());
         _cleanAndReload(ad);
       },
     );

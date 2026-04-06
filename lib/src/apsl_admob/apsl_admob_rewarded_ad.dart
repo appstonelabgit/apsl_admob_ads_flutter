@@ -58,6 +58,7 @@ class ApslAdmobRewardedAd extends ApslAdBase {
     _loadTimeoutTimer = null;
     _retryCount = 0;
     _loadGeneration++;
+    clearListeners();
   }
 
   @override
@@ -98,7 +99,7 @@ class ApslAdmobRewardedAd extends ApslAdBase {
             _isLoading = false;
             _retryCount = 0;
             _loadTimeoutTimer?.cancel();
-            onAdLoaded?.call(adNetwork, adUnitType, ad);
+            fireAdLoaded(ad);
           },
           onAdFailedToLoad: (LoadAdError error) {
             if (generation != _loadGeneration) return;
@@ -124,12 +125,7 @@ class ApslAdmobRewardedAd extends ApslAdBase {
   /// Handles ad load errors, retrying with exponential backoff if enabled
   /// and under [RewardedAdConfig.maxRetries].
   void _handleError(AdErrorType errorType, {String? errorMessage}) {
-    onAdFailedToLoad?.call(
-      adNetwork,
-      adUnitType,
-      null,
-      errorMessage: errorMessage ?? errorType.message,
-    );
+    fireAdFailedToLoad(null, errorMessage ?? errorType.message);
 
     if (!_config.enableAutoRetry || !isErrorRetryable(errorType)) return;
     if (_retryCount >= _config.maxRetries) return;
@@ -154,19 +150,14 @@ class ApslAdmobRewardedAd extends ApslAdBase {
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (RewardedAd ad) {
-        onAdShowed?.call(adNetwork, adUnitType, ad);
+        fireAdShowed(ad);
       },
       onAdDismissedFullScreenContent: (RewardedAd ad) {
-        onAdDismissed?.call(adNetwork, adUnitType, ad);
+        fireAdDismissed(ad);
         _cleanAndReload(ad);
       },
       onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) {
-        onAdFailedToShow?.call(
-          adNetwork,
-          adUnitType,
-          ad,
-          errorMessage: error.toString(),
-        );
+        fireAdFailedToShow(ad, error.toString());
         _cleanAndReload(ad);
       },
     );
@@ -174,10 +165,9 @@ class ApslAdmobRewardedAd extends ApslAdBase {
     ad.setImmersiveMode(_config.immersiveModeEnabled);
 
     ad.show(onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-      onEarnedReward?.call(
-        adNetwork,
-        adUnitType,
+      fireEarnedReward(
         reward.type,
+        rewardType: reward.type,
         rewardAmount: reward.amount,
       );
     });

@@ -1,7 +1,15 @@
 import 'dart:async';
+
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import 'package:flutter/foundation.dart';
 
+/// Bridges per-ad multicast listeners into a single application-wide
+/// broadcast [Stream] of [AdEvent].
+///
+/// Every ad created via [ApslAds.createBanner], [ApslAds.createNative], or
+/// the cold-start preload path is registered here so that any subscriber
+/// to [ApslAds.instance.onEvent] sees a unified, ordered timeline of ad
+/// activity.
 class ApslEventController {
   final bool debugLogging;
 
@@ -10,8 +18,12 @@ class ApslEventController {
   final _onEventController = StreamController<AdEvent>.broadcast();
   Stream<AdEvent> get onEvent => _onEventController.stream;
 
+  /// Closes the underlying broadcast stream. Called from
+  /// [ApslAds.destroyAds] so re-initializing doesn't leak listeners.
   void dispose() {
-    _onEventController.close();
+    if (!_onEventController.isClosed) {
+      _onEventController.close();
+    }
   }
 
   void fireNetworkInitializedEvent(AdNetwork adNetwork, bool status) {
@@ -22,13 +34,17 @@ class ApslEventController {
     ));
   }
 
+  /// Subscribes to the lifecycle events of [ad] and forwards them onto
+  /// the broadcast stream. Uses the multicast `addOn*` listener API so
+  /// that registering here does NOT clobber any other subscribers (e.g.
+  /// the widget-level callbacks set by [ApslBannerAd]).
   void setupEvents(ApslAdBase ad) {
-    ad.onAdLoaded = _onAdLoadedMethod;
-    ad.onAdFailedToLoad = _onAdFailedToLoadMethod;
-    ad.onAdShowed = _onAdShowedMethod;
-    ad.onAdFailedToShow = _onAdFailedToShowMethod;
-    ad.onAdDismissed = _onAdDismissedMethod;
-    ad.onEarnedReward = _onEarnedRewardMethod;
+    ad.addOnAdLoaded(_onAdLoadedMethod);
+    ad.addOnAdFailedToLoad(_onAdFailedToLoadMethod);
+    ad.addOnAdShowed(_onAdShowedMethod);
+    ad.addOnAdFailedToShow(_onAdFailedToShowMethod);
+    ad.addOnAdDismissed(_onAdDismissedMethod);
+    ad.addOnEarnedReward(_onEarnedRewardMethod);
   }
 
   void _addEvent(AdEvent event) {
