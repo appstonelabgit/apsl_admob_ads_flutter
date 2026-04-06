@@ -30,7 +30,14 @@ class ApslAdmobAppOpenAd extends ApslAdBase {
   }
 
   @override
-  Future<void> load() => _load(showAdOnLoad: true);
+  Future<void> load() => _load(showAdOnLoad: false);
+
+  /// Loads the app open ad and shows it as soon as it is ready.
+  ///
+  /// Use this when you want a "load and show now" flow (e.g. an explicit
+  /// user-initiated splash). For background preloading at app start, use
+  /// [load] instead — it does not auto-show.
+  Future<void> loadAndShow() => _load(showAdOnLoad: true);
 
   Future<void> _load({bool showAdOnLoad = false}) async {
     if (isAdLoaded || forceStopToLoadAds || _isLoading) return;

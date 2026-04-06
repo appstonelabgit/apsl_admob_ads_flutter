@@ -18,7 +18,10 @@ class ApslAds {
   /// Google admob's ad request
   AdRequest _adRequest = const AdRequest();
   late final AdsIdManager adIdManager;
-  late AppLifecycleReactor _appLifecycleReactor;
+
+  /// Optional — only created when [initialize] is called with
+  /// `isShowAppOpenOnAppStateChange: true`.
+  AppLifecycleReactor? _appLifecycleReactor;
 
   final _eventController = ApslEventController();
   Stream<AdEvent> get onEvent => _eventController.onEvent;
@@ -42,7 +45,11 @@ class ApslAds {
   bool get showAdBadge => _showAdBadge;
   bool _showAdBadge = false;
 
-  bool _preLoadRewardedAds = false;
+  /// Configuration applied to interstitial ads created during [initialize].
+  InterstitialAdConfig _interstitialAdConfig = const InterstitialAdConfig();
+
+  /// Configuration applied to rewarded ads created during [initialize].
+  RewardedAdConfig _rewardedAdConfig = const RewardedAdConfig();
 
   int _interstitialAdIndex = 0;
   int _rewardedAdIndex = 0;
@@ -56,10 +63,18 @@ class ApslAds {
 
   StreamSubscription? _streamSubscription;
 
-  /// Initializes the Google Mobile Ads SDK.
+  /// Initializes the Google Mobile Ads SDK and preloads ads.
   ///
-  /// Call this method as early as possible after the app launches
-  /// [adMobAdRequest] will be used in all the admob requests. By default empty request will be used if nothing passed here.
+  /// Call this method as early as possible after the app launches.
+  ///
+  /// * [adMobAdRequest] is reused for every AdMob request. Defaults to an
+  ///   empty request.
+  /// * [interstitialAdConfig] / [rewardedAdConfig] let consumers tune retry
+  ///   policy, timeout, and immersive mode for the two highest-revenue ad
+  ///   formats. If omitted, the package defaults are used.
+  /// * Cold start: this future resolves as soon as the SDK reports
+  ///   initialized. Ad preloads are kicked off in parallel and tracked in
+  ///   the background — they do not block your `runApp` call.
   Future<void> initialize(
     AdsIdManager manager, {
     bool isShowAppOpenOnAppStateChange = false,
@@ -68,14 +83,13 @@ class ApslAds {
     bool enableLogger = true,
     bool showAdBadge = false,
     int showNavigationAdAfterCount = 1,
-    bool preloadRewardedAds = false,
-    bool blockAppOpenAd = false,
-    ApslAdCallback? onAdFailedToLoad,
-    ApslAdCallback? onAdShowed,
+    InterstitialAdConfig? interstitialAdConfig,
+    RewardedAdConfig? rewardedAdConfig,
   }) async {
     _showAdBadge = showAdBadge;
     _showNavigationAdAfterCount = showNavigationAdAfterCount;
-    _preLoadRewardedAds = preloadRewardedAds;
+    _interstitialAdConfig = interstitialAdConfig ?? const InterstitialAdConfig();
+    _rewardedAdConfig = rewardedAdConfig ?? const RewardedAdConfig();
     if (enableLogger) _logger.enable(enableLogger);
     adIdManager = manager;
     if (adMobAdRequest != null) {
@@ -87,40 +101,42 @@ class ApslAds {
     }
 
     for (var appAdId in manager.appAdIds) {
-      if (appAdId.appId.isNotEmpty) {
-        final adNetworkName = getAdNetworkFromString(appAdId.adNetwork.name);
-        switch (adNetworkName) {
-          case AdNetwork.admob:
-            // Initializing Mobile Ads SDK
-            if (!_isMobileAdNetworkInitialized) {
-              final response = await MobileAds.instance.initialize();
-              final status = response.adapterStatuses.values.firstOrNull?.state;
+      if (appAdId.appId.isEmpty) continue;
+      final adNetworkName = getAdNetworkFromString(appAdId.adNetwork.name);
+      switch (adNetworkName) {
+        case AdNetwork.admob:
+          // Initialize the Mobile Ads SDK exactly once. We await this
+          // because no ad load can succeed before the SDK is ready.
+          if (!_isMobileAdNetworkInitialized) {
+            final response = await MobileAds.instance.initialize();
+            final status = response.adapterStatuses.values.firstOrNull?.state;
 
-              response.adapterStatuses.forEach((key, value) {
-                _logger.logInfo(
-                    'Google-mobile-ads Adapter status for $key: ${value.description}');
-              });
+            response.adapterStatuses.forEach((key, value) {
+              _logger.logInfo(
+                  'Google-mobile-ads Adapter status for $key: ${value.description}');
+            });
 
-              _eventController.fireNetworkInitializedEvent(
-                  AdNetwork.admob, status == AdapterInitializationState.ready);
+            _eventController.fireNetworkInitializedEvent(
+                AdNetwork.admob, status == AdapterInitializationState.ready);
 
-              _isMobileAdNetworkInitialized = true;
-            }
+            _isMobileAdNetworkInitialized = true;
+          }
 
-            // Initializing admob Ads
-            await ApslAds.instance._initAdmob(
-              appOpenAdUnitId: appAdId.appOpenId,
-              interstitialAdUnitId: appAdId.interstitialId,
-              rewardedAdUnitId: appAdId.rewardedId,
-              isShowAppOpenOnAppStateChange: isShowAppOpenOnAppStateChange,
-              onAdFailedToLoad: onAdFailedToLoad,
-              onAdShowed: onAdShowed,
-            );
-            break;
+          // Wire up ad managers and kick off all preloads in parallel.
+          // We intentionally do NOT await the individual ad loads here:
+          // each ad's listener handles its own state, and blocking the
+          // initialize() future on three sequential network round-trips
+          // adds multiple seconds to cold start.
+          _initAdmob(
+            appOpenAdUnitId: appAdId.appOpenId,
+            interstitialAdUnitId: appAdId.interstitialId,
+            rewardedAdUnitId: appAdId.rewardedId,
+            isShowAppOpenOnAppStateChange: isShowAppOpenOnAppStateChange,
+          );
+          break;
 
-          case AdNetwork.any:
-            break;
-        }
+        case AdNetwork.any:
+          break;
       }
     }
   }
@@ -239,17 +255,17 @@ class ApslAds {
     return ad;
   }
 
-  Future<void> _initAdmob({
+  /// Wires up AdMob ad managers and triggers preloads in parallel.
+  ///
+  /// All `load()` calls are intentionally fire-and-forget so that cold
+  /// start isn't blocked on three sequential network round-trips.
+  void _initAdmob({
     String? appOpenAdUnitId,
     String? interstitialAdUnitId,
     String? rewardedAdUnitId,
-    bool immersiveModeEnabled = true,
     bool isShowAppOpenOnAppStateChange = true,
-    ApslAdCallback? onAdFailedToLoad,
-    ApslAdCallback? onAdShowed,
-  }) async {
-    // init interstitial ads
-    ApslLogger().logInfo("InterstitialAdUnitId $interstitialAdUnitId");
+  }) {
+    // Interstitial
     if (interstitialAdUnitId != null &&
         _interstitialAds.doesNotContain(
           AdNetwork.admob,
@@ -259,17 +275,14 @@ class ApslAds {
       final ad = ApslAdmobInterstitialAd(
         interstitialAdUnitId,
         adRequest: _adRequest,
-        config: InterstitialAdConfig(
-          immersiveModeEnabled: immersiveModeEnabled,
-        ),
+        config: _interstitialAdConfig,
       );
       _interstitialAds.add(ad);
       _eventController.setupEvents(ad);
-
-      await ad.load();
+      ad.load();
     }
 
-    // init rewarded ads
+    // Rewarded
     if (rewardedAdUnitId != null &&
         _rewardedAds.doesNotContain(
           AdNetwork.admob,
@@ -279,19 +292,16 @@ class ApslAds {
       final ad = ApslAdmobRewardedAd(
         rewardedAdUnitId,
         adRequest: _adRequest,
-        config: RewardedAdConfig(
-          immersiveModeEnabled: immersiveModeEnabled,
-          preLoadRewardedAds: _preLoadRewardedAds,
-        ),
+        config: _rewardedAdConfig,
       );
       _rewardedAds.add(ad);
       _eventController.setupEvents(ad);
-
-      if (_preLoadRewardedAds) {
-        await ad.load();
+      if (_rewardedAdConfig.preLoadRewardedAds) {
+        ad.load();
       }
     }
 
+    // App Open
     if (!forceStopToLoadAds &&
         appOpenAdUnitId != null &&
         _appOpenAds.doesNotContain(
@@ -304,14 +314,14 @@ class ApslAds {
         _adRequest,
       );
 
-      if (_appOpenAds.isEmpty) {
-        await appOpenAdManager.load();
-      }
+      // Silent preload — do NOT auto-show on first load (that bug used to
+      // pop an app-open ad over the splash screen during cold start).
+      appOpenAdManager.load();
 
       if (isShowAppOpenOnAppStateChange) {
         _appLifecycleReactor =
             AppLifecycleReactor(appOpenAdManager: appOpenAdManager);
-        _appLifecycleReactor.listenToAppStateChanges();
+        _appLifecycleReactor!.listenToAppStateChanges();
       }
       _appOpenAds.add(appOpenAdManager);
       _eventController.setupEvents(appOpenAdManager);

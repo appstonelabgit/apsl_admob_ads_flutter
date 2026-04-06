@@ -22,7 +22,7 @@ void main() async {
       adMobAdRequest: const AdRequest(),
       admobConfiguration: RequestConfiguration(testDeviceIds: []),
       showAdBadge: false,
-      preloadRewardedAds: false,
+      rewardedAdConfig: const RewardedAdConfig(preLoadRewardedAds: true),
     );
   } catch (e) {
     debugPrint('Failed to initialize ads: $e');
