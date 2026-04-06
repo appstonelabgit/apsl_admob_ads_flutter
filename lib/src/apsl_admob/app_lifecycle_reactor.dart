@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:apsl_admob_ads_flutter/src/apsl_admob/apsl_admob_app_open_ad.dart';
-import 'package:apsl_admob_ads_flutter/src/utils/test_ads_id_manager.dart';
+import 'package:apsl_admob_ads_flutter/src/utils/ad_loading_gate.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Reacts to app lifecycle changes to show App Open Ads appropriately.

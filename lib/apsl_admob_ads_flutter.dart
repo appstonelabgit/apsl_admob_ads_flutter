@@ -14,6 +14,7 @@ export 'package:apsl_admob_ads_flutter/src/enums/apsl_event_type.dart';
 export 'package:apsl_admob_ads_flutter/src/enums/ad_network.dart';
 export 'package:apsl_admob_ads_flutter/src/enums/ad_unit_type.dart';
 export 'package:apsl_admob_ads_flutter/src/utils/ad_event.dart';
+export 'package:apsl_admob_ads_flutter/src/utils/ad_loading_gate.dart';
 export 'package:apsl_admob_ads_flutter/src/utils/apsl_banner_ad.dart';
 export 'package:apsl_admob_ads_flutter/src/utils/apsl_native_ad.dart';
 export 'package:apsl_admob_ads_flutter/src/utils/ads_id_manager.dart';

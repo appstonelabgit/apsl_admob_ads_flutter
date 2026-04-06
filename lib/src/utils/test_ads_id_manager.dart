@@ -2,8 +2,6 @@ import 'dart:io';
 
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 
-bool forceStopToLoadAds = false;
-
 class TestAdsIdManager extends AdsIdManager {
   const TestAdsIdManager();
 

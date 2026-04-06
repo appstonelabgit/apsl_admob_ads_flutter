@@ -368,8 +368,11 @@ class ApslAds {
         if (shouldShowLoader && context != null) {
           showLoaderDialog(context);
         }
-        ad.show();
+        // Advance the round-robin cursor BEFORE show() so the next call
+        // tries the next ad even if this show() ends up failing inside
+        // the SDK. The cursor advance is cheap and idempotent.
         _updateAdIndex(adUnitType);
+        ad.show();
         return true;
       } else {
         _logger.logInfo("Ad not loaded for $adUnitType from $adNetwork");
@@ -481,24 +484,21 @@ class ApslAds {
             : null;
   }
 
-  /// This will load both rewarded and interstitial ads.
-  /// If a particular ad is already loaded, it will not load it again.
-  /// Also you do not have to call this method everytime. Ad is automatically loaded after being displayed.
+  /// Triggers a load on every interstitial / rewarded / app-open ad that
+  /// isn't already loaded.
   ///
-  /// if [adNetwork] is provided, only that network's ad will be loaded
+  /// You normally do not need to call this — ads are loaded at startup
+  /// and automatically reloaded after each show. Use it to force-warm
+  /// the cache after the user takes an action you know will trigger an
+  /// ad request soon.
+  ///
+  /// If [adNetwork] is provided, only that network's ads are loaded.
+  /// If omitted, every configured network is loaded.
   void loadAd({AdNetwork? adNetwork}) {
-    if (adNetwork != null) {
-      _loadAdsForNetwork(adNetwork);
-    } else {
-      _loadAdsForNetwork(AdNetwork.admob);
-    }
-  }
-
-  void _loadAdsForNetwork(AdNetwork adNetwork) {
-    for (var ad in _allAds) {
-      if (ad.adNetwork == adNetwork && !ad.isAdLoaded) {
-        ad.load();
-      }
+    for (final ad in _allAds) {
+      if (ad.isAdLoaded) continue;
+      if (adNetwork != null && ad.adNetwork != adNetwork) continue;
+      ad.load();
     }
   }
 
@@ -519,7 +519,9 @@ class ApslAds {
     }
   }
 
-  /// This will destroy all the ads and clear the lists
+  /// Disposes every ad managed by the singleton and tears down all
+  /// auxiliary subsystems (lifecycle reactor, load resumer, event
+  /// controller). Safe to call multiple times.
   void destroyAds() {
     for (var ad in _allAds) {
       ad.dispose();
@@ -530,6 +532,12 @@ class ApslAds {
     _interstitialAdIndex = 0;
     _rewardedAdIndex = 0;
     _appOpenAdIndex = 0;
+
+    _appLifecycleReactor?.dispose();
+    _appLifecycleReactor = null;
+
+    _loadResumer?.dispose();
+    _loadResumer = null;
   }
 
   /// This method is used to show navigation ad after every [showNavigationAdAfterCount] navigation
