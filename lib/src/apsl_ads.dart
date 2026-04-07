@@ -112,15 +112,23 @@ class ApslAds {
           // because no ad load can succeed before the SDK is ready.
           if (!_isMobileAdNetworkInitialized) {
             final response = await MobileAds.instance.initialize();
-            final status = response.adapterStatuses.values.firstOrNull?.state;
 
             response.adapterStatuses.forEach((key, value) {
               _logger.logInfo(
                   'Google-mobile-ads Adapter status for $key: ${value.description}');
             });
 
+            // The SDK is considered initialized if AT LEAST ONE adapter is
+            // in the ready state. Picking the first adapter (as the previous
+            // code did) was wrong because the iteration order over the
+            // adapterStatuses map is not guaranteed to start with a
+            // ready adapter — leading to a misleading "failed to initialize"
+            // log even when ad loads subsequently succeeded.
+            final anyAdapterReady = response.adapterStatuses.values
+                .any((s) => s.state == AdapterInitializationState.ready);
+
             _eventController.fireNetworkInitializedEvent(
-                AdNetwork.admob, status == AdapterInitializationState.ready);
+                AdNetwork.admob, anyAdapterReady);
 
             _isMobileAdNetworkInitialized = true;
           }
