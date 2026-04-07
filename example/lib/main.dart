@@ -240,51 +240,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Loads and shows a rewarded ad from the specified network.
   ///
-  /// Parameters:
-  /// * [adNetwork] - The ad network to use for the rewarded ad
-  void _loadAndShowRewardedAds({required AdNetwork adNetwork}) {
+  /// Demonstrates the recommended 2.0 pattern: `await` the
+  /// `Future<bool>` return value of [ApslAds.loadAndShowRewardedAd] so
+  /// you can branch on success/failure, and use the [ApslAds.onEvent]
+  /// stream only for the orthogonal `earnedReward` signal.
+  Future<void> _loadAndShowRewardedAds({required AdNetwork adNetwork}) async {
+    // Listen for the reward signal BEFORE calling loadAndShow so we don't
+    // miss it for cache-hit fast paths that fire synchronously.
+    _streamSubscription?.cancel();
+    _streamSubscription = ApslAds.instance.onEvent.listen(
+      (event) {
+        if (event.adUnitType != AdUnitType.rewarded) return;
+        if (event.type == AdEventType.earnedReward && mounted) {
+          _showCustomDialog(
+            context,
+            title: "Congratulations",
+            description: "You earned rewards",
+          );
+        }
+      },
+      onError: (error) => debugPrint('Error in rewarded ad stream: $error'),
+    );
+
     try {
-      ApslAds.instance.loadAndShowRewardedAd(
+      final shown = await ApslAds.instance.loadAndShowRewardedAd(
         context: context,
         adNetwork: adNetwork,
       );
 
-      _streamSubscription?.cancel();
-      _streamSubscription = ApslAds.instance.onEvent.listen(
-        (event) {
-          if (event.adUnitType == AdUnitType.rewarded) {
-            if (event.type == AdEventType.adDismissed) {
-              // Ad was dismissed
-            } else if (event.type == AdEventType.adFailedToShow) {
-              if (mounted) {
-                _showCustomDialog(
-                  context,
-                  title: "Ads not available",
-                  description: "Please try again later.",
-                );
-              }
-            } else if (event.type == AdEventType.earnedReward) {
-              if (mounted) {
-                _showCustomDialog(
-                  context,
-                  title: "Congratulations",
-                  description: "You earned rewards",
-                );
-              }
-            }
-          }
-        },
-        onError: (error) {
-          debugPrint('Error in rewarded ad: $error');
-          if (mounted) {
-            _showCustomDialog(
-              context,
-              title: "Error",
-              description: "Failed to show rewarded ad. Please try again.",
-            );
-          }
-        },
-      );
+      if (!shown && mounted) {
+        _showCustomDialog(
+          context,
+          title: "Ads not available",
+          description: "Please try again later.",
+        );
+      }
     } catch (e) {
       debugPrint('Error in _loadAndShowRewardedAds: $e');
       if (mounted) {
