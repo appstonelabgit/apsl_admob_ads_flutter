@@ -13,7 +13,11 @@ class TestAdsIdManager extends AdsIdManager {
               ? 'ca-app-pub-3940256099942544~3347511713'
               : 'ca-app-pub-3940256099942544~1458002511',
           appOpenId: Platform.isAndroid
-              ? 'ca-app-pub-3940256099942544/3419835294'
+              // Google updated the Android App Open test ad unit; the
+              // old `3419835294` returns "Ad unit doesn't match format"
+              // and is no longer documented at
+              // https://developers.google.com/admob/android/test-ads.
+              ? 'ca-app-pub-3940256099942544/9257395921'
               : 'ca-app-pub-3940256099942544/5575463023',
           bannerId: Platform.isAndroid
               ? 'ca-app-pub-3940256099942544/6300978111'
